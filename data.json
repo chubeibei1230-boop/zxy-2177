@@ -107,12 +107,39 @@
       "modification_records": [],
       "reject_records": [],
       "seal_record": null
+    },
+    "d584c190-a646-4b53-9456-063011b58c5d": {
+      "id": "d584c190-a646-4b53-9456-063011b58c5d",
+      "project_name": "fix-operator-check-500d227b",
+      "customer_name": "customer",
+      "board_spec": "A",
+      "die_number": "DM-FIX-500d227b",
+      "die_version": "V1.0",
+      "test_round": 1,
+      "owner": "engineer",
+      "status": "打样中",
+      "priority": "普通",
+      "deadline": null,
+      "created_at": "2026-06-17T12:00:43.433903",
+      "updated_at": "2026-06-17T12:00:43.444532",
+      "created_by": "engineer",
+      "notes": null,
+      "open_record": {
+        "opener": "engineer",
+        "open_date": "2026-06-17T12:00:43.444532",
+        "notes": null
+      },
+      "test_records": [],
+      "modification_records": [],
+      "reject_records": [],
+      "seal_record": null
     }
   },
   "index_project_version": {
     "项目A-礼盒包装|DM-2026-001|V1.0": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
     "项目A-礼盒包装|DM-2026-001|V1.1": "c6f8d159-9358-414e-8b4c-53e43e330ccb",
-    "项目B-快递盒|DM-2026-002|V1.0": "5197573d-9634-41ac-93a8-423f3db3de34"
+    "项目B-快递盒|DM-2026-002|V1.0": "5197573d-9634-41ac-93a8-423f3db3de34",
+    "fix-operator-check-500d227b|DM-FIX-500d227b|V1.0": "d584c190-a646-4b53-9456-063011b58c5d"
   },
   "operation_logs": {
     "0968eaee-e99c-43a0-806a-3b8023c3535b": {
@@ -266,6 +293,41 @@
         "latest_test_passed": true,
         "sealer": "总工办"
       }
+    },
+    "3ea12519-bb41-4780-ae69-0ed1492131d9": {
+      "id": "3ea12519-bb41-4780-ae69-0ed1492131d9",
+      "sample_id": "d584c190-a646-4b53-9456-063011b58c5d",
+      "project_name": "fix-operator-check-500d227b",
+      "customer_name": "customer",
+      "die_number": "DM-FIX-500d227b",
+      "operation_type": "新建",
+      "operator": "engineer",
+      "operation_time": "2026-06-17T12:00:43.433903",
+      "previous_status": null,
+      "current_status": "待开样",
+      "notes": null,
+      "business_result": {
+        "die_version": "V1.0",
+        "test_round": 1,
+        "owner": "engineer",
+        "priority": "普通"
+      }
+    },
+    "17133b16-f112-4525-a2f2-369a19ae9720": {
+      "id": "17133b16-f112-4525-a2f2-369a19ae9720",
+      "sample_id": "d584c190-a646-4b53-9456-063011b58c5d",
+      "project_name": "fix-operator-check-500d227b",
+      "customer_name": "customer",
+      "die_number": "DM-FIX-500d227b",
+      "operation_type": "开样",
+      "operator": "engineer",
+      "operation_time": "2026-06-17T12:00:43.444532",
+      "previous_status": "待开样",
+      "current_status": "打样中",
+      "notes": null,
+      "business_result": {
+        "opener": "engineer"
+      }
     }
   },
   "index_sample_logs": {
@@ -282,6 +344,10 @@
     ],
     "5197573d-9634-41ac-93a8-423f3db3de34": [
       "5cc742d1-d96c-4795-b6fc-69e641854276"
+    ],
+    "d584c190-a646-4b53-9456-063011b58c5d": [
+      "3ea12519-bb41-4780-ae69-0ed1492131d9",
+      "17133b16-f112-4525-a2f2-369a19ae9720"
     ]
   }
 }

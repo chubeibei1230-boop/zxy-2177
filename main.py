@@ -36,14 +36,6 @@ app.add_middleware(
 store = DieSampleStore()
 
 
-def _validate_operator(operator: str, current_user: User) -> None:
-    if current_user.role != "admin" and operator != current_user.username:
-        raise HTTPException(
-            status_code=403,
-            detail=f"权限不足：操作人必须为当前登录用户（{current_user.username}），管理员可代填",
-        )
-
-
 @app.get("/api/health", tags=["系统"])
 async def health_check():
     return {"status": "ok", "service": "die-sample-management", "port": 8127}
@@ -125,7 +117,7 @@ async def open_sample(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.opener, current_user)
+        req.opener = current_user.username
         return store.open_sample(sample_id, req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -138,7 +130,7 @@ async def submit_test(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.tester, current_user)
+        req.tester = current_user.username
         return store.submit_test_result(sample_id, req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -151,7 +143,7 @@ async def submit_modification(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.modifier, current_user)
+        req.modifier = current_user.username
         return store.submit_modification(sample_id, req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -164,7 +156,7 @@ async def confirm_seal(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.confirmer, current_user)
+        req.confirmer = current_user.username
         return store.confirm_seal(sample_id, req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -177,7 +169,7 @@ async def reject_sample(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.rejecter, current_user)
+        req.rejecter = current_user.username
         return store.reject_sample(sample_id, req)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -190,7 +182,7 @@ async def change_status(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        _validate_operator(req.operator, current_user)
+        req.operator = current_user.username
         return store.change_status(sample_id, req.target_status, req.operator, req.notes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

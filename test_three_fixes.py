@@ -72,7 +72,7 @@ else:
     sys.exit(1)
 
 print("\n" + "=" * 60)
-print("问题2验证：操作人参数校验")
+print("问题2验证：操作人以后端登录用户为准")
 print("=" * 60)
 
 # 用 engineer 用户登录，尝试填写别人的名字作为操作人
@@ -94,43 +94,34 @@ r = requests.post(f"{BASE}/api/samples", json=sample_data2, headers=engineer_hea
 s2 = r.json()["id"]
 requests.post(f"{BASE}/api/samples/{s2}/open", json={"opener": "engineer"}, headers=engineer_headers)
 
-# 测试：engineer 尝试把 tester 填成 admin（应该失败）
+# 测试：engineer 尝试把 tester 填成 admin，后端应覆盖为 engineer
 test_data_fake = {
     "round": 1, "folding_result": "好", "indentation_result": "好",
     "cracking_description": "", "tester": "admin", "is_passed": True
 }
 r = requests.post(f"{BASE}/api/samples/{s2}/test", json=test_data_fake, headers=engineer_headers)
-print_response("engineer 尝试把操作人填成 admin（应403）", r)
-if r.status_code == 403:
-    print("✅ 成功：非管理员用户不能随意填写操作人")
+print_response("engineer 尝试把操作人填成 admin（应记录为 engineer）", r, show_body=False)
+timeline = requests.get(f"{BASE}/api/samples/{s2}/timeline", headers=engineer_headers).json()
+latest_operator = timeline[-1]["operator"] if timeline else None
+if r.status_code == 200 and latest_operator == "engineer":
+    print("✅ 成功：前端传入的操作人被后端登录用户覆盖")
 else:
-    print("❌ 失败：非管理员用户可以随意填写操作人")
+    print(f"❌ 失败：操作人未以后端登录用户为准，实际为 {latest_operator}")
     sys.exit(1)
 
-# 测试：engineer 用自己的名字（应该成功）
+# 测试：admin 填写其他操作人，后端仍应覆盖为 admin
 test_data_real = {
-    "round": 1, "folding_result": "好", "indentation_result": "好",
-    "cracking_description": "", "tester": "engineer", "is_passed": True
+    "round": 2, "folding_result": "好", "indentation_result": "好",
+    "cracking_description": "", "tester": "张三", "is_passed": True
 }
-r = requests.post(f"{BASE}/api/samples/{s2}/test", json=test_data_real, headers=engineer_headers)
-print_response("engineer 用自己的名字操作（应200）", r, show_body=False)
-if r.status_code == 200:
-    print("✅ 成功：非管理员用户使用自己的名字可以正常操作")
+r = requests.post(f"{BASE}/api/samples/{s2}/test", json=test_data_real, headers=admin_headers)
+print_response("admin 填写操作人为张三（应记录为 admin）", r, show_body=False)
+timeline = requests.get(f"{BASE}/api/samples/{s2}/timeline", headers=admin_headers).json()
+latest_operator = timeline[-1]["operator"] if timeline else None
+if r.status_code == 200 and latest_operator == "admin":
+    print("✅ 成功：管理员也不能代填其他操作人")
 else:
-    print("❌ 失败：非管理员用户使用自己的名字操作失败")
-    sys.exit(1)
-
-# 测试：admin 可以代填其他操作人
-r = requests.post(f"{BASE}/api/samples/{s1}/status", json={
-    "target_status": "已取消",
-    "operator": "张三",
-    "notes": "管理员代操作测试"
-}, headers=admin_headers)
-print_response("admin 代填操作人为张三（应200）", r, show_body=False)
-if r.status_code == 200:
-    print("✅ 成功：管理员可以代填其他操作人")
-else:
-    print("❌ 失败：管理员不能代填操作人")
+    print(f"❌ 失败：管理员仍可代填操作人，实际为 {latest_operator}")
     sys.exit(1)
 
 print("\n" + "=" * 60)
@@ -172,7 +163,7 @@ print("\n" + "=" * 60)
 print("🎉 所有三个问题的修复验证通过！")
 print("=" * 60)
 print("1. ✅ 打样详情页直接展示完整时间线")
-print("2. ✅ 操作人参数已校验，非管理员不能随意填写")
+print("2. ✅ 操作人以后端登录用户为准，前端不能随意填写")
 print("3. ✅ 历史操作记录已持久化到 data.json，服务重启不会丢失")
 print("\n验证的关键技术点：")
 print("- 原子写入（临时文件+rename）防止文件损坏")
