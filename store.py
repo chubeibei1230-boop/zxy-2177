@@ -108,7 +108,10 @@ class DieSampleStore:
         )
         s.test_records.append(record)
         s.test_round = req.round
-        s.status = SampleStatus.PENDING_CONFIRM
+        if req.is_passed:
+            s.status = SampleStatus.PENDING_CONFIRM
+        else:
+            s.status = SampleStatus.MODIFYING
         s.updated_at = datetime.now()
         return s
 
@@ -189,18 +192,32 @@ class DieSampleStore:
         s.updated_at = datetime.now()
         return s
 
+    ALLOWED_STATUS_TRANSITIONS: Dict[SampleStatus, List[SampleStatus]] = {
+        SampleStatus.PENDING_OPEN: [SampleStatus.SAMPLING, SampleStatus.CANCELLED],
+        SampleStatus.SAMPLING: [SampleStatus.PENDING_TEST, SampleStatus.MODIFYING, SampleStatus.CANCELLED],
+        SampleStatus.PENDING_TEST: [SampleStatus.SAMPLING, SampleStatus.CANCELLED],
+        SampleStatus.PENDING_CONFIRM: [SampleStatus.MODIFYING, SampleStatus.CANCELLED],
+        SampleStatus.MODIFYING: [SampleStatus.SAMPLING, SampleStatus.PENDING_TEST, SampleStatus.CANCELLED],
+        SampleStatus.SEALED: [SampleStatus.CANCELLED],
+        SampleStatus.CANCELLED: [],
+    }
+
     def change_status(self, sample_id: str, target_status: SampleStatus, operator: str) -> DieSample:
         s = self._require(sample_id)
+        if target_status == SampleStatus.SEALED:
+            raise ValueError("已封样状态仅可通过封样确认接口设置，禁止直接切换")
+        if target_status == SampleStatus.PENDING_CONFIRM:
+            raise ValueError("待确认状态仅可通过提交测试结果触发，禁止直接切换")
+        if s.status == SampleStatus.CANCELLED:
+            raise ValueError("已取消的记录不可重新激活，如需恢复请新建记录")
+        allowed = self.ALLOWED_STATUS_TRANSITIONS.get(s.status, [])
+        if target_status not in allowed:
+            allowed_str = "、".join(x.value for x in allowed) if allowed else "无"
+            raise ValueError(f"当前状态 {s.status.value} 不允许切换为 {target_status.value}，允许的目标状态: [{allowed_str}]")
         if target_status == SampleStatus.CANCELLED:
             key = self._make_key(s.project_name, s.die_number, s.die_version)
             if key in self._index_project_version:
                 del self._index_project_version[key]
-        if target_status == SampleStatus.PENDING_TEST:
-            if s.status not in [SampleStatus.SAMPLING, SampleStatus.MODIFYING]:
-                raise ValueError(f"当前状态 {s.status.value} 不允许切换为待测试")
-        if target_status == SampleStatus.SAMPLING:
-            if s.status not in [SampleStatus.PENDING_OPEN, SampleStatus.MODIFYING, SampleStatus.PENDING_TEST]:
-                raise ValueError(f"当前状态 {s.status.value} 不允许切换为打样中")
         s.status = target_status
         s.updated_at = datetime.now()
         return s
@@ -209,14 +226,15 @@ class DieSampleStore:
         anomalies: List[AnomalyReport] = []
         now = datetime.now()
 
-        spec_cracking: Dict[str, List[str]] = defaultdict(list)
+        spec_cracking: Dict[str, set] = defaultdict(set)
         for s in self.samples.values():
             for t in s.test_records:
                 if t.cracking_description and str(t.cracking_description).strip():
-                    spec_cracking[s.board_spec].append(s.id)
+                    spec_cracking[s.board_spec].add(s.id)
+                    break
         for spec, ids in spec_cracking.items():
             if len(ids) >= CRACKING_CONCENTRATION_THRESHOLD:
-                unique_ids = list(set(ids))
+                unique_ids = list(ids)
                 anomalies.append(AnomalyReport(
                     type="同规格开裂集中",
                     level="high" if len(unique_ids) >= 5 else "medium",
