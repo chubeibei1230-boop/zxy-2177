@@ -73,6 +73,23 @@ function getInitials(name) {
     return name.charAt(0).toUpperCase();
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    str = String(str);
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatDieVersion(version) {
+    if (!version) return '';
+    const v = String(version).trim();
+    if (v.toUpperCase().startsWith('V')) {
+        return v;
+    }
+    return 'v' + v;
+}
+
 async function apiRequest(endpoint, options = {}) {
     const headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -276,10 +293,10 @@ function renderKanbanCard(sample) {
     }
     
     return `
-        <div class="kanban-card ${cardClass}" data-sample-id="${sample.id}">
+        <div class="kanban-card ${cardClass}" data-sample-id="${escapeHtml(sample.id)}">
             <div class="kanban-card-header">
-                <span class="kanban-card-project" title="${sample.project_name}">${sample.project_name}</span>
-                <span class="kanban-card-priority priority-${sample.priority}">${sample.priority}</span>
+                <span class="kanban-card-project" title="${escapeHtml(sample.project_name)}">${escapeHtml(sample.project_name)}</span>
+                <span class="kanban-card-priority priority-${escapeHtml(sample.priority)}">${escapeHtml(sample.priority)}</span>
             </div>
             <div class="kanban-card-meta">
                 <div class="kanban-card-meta-row">
@@ -287,14 +304,14 @@ function renderKanbanCard(sample) {
                         <path d="M8 14s-6-4.5-6-9a6 6 0 0 1 12 0c0 4.5-6 9-6 9z" stroke="currentColor" stroke-width="1.5"/>
                         <circle cx="8" cy="5" r="2" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
-                    <span class="kanban-card-customer">${sample.customer_name}</span>
+                    <span class="kanban-card-customer">${escapeHtml(sample.customer_name)}</span>
                 </div>
                 <div class="kanban-card-meta-row">
                     <svg viewBox="0 0 16 16" fill="none">
                         <rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M2 7h12M5 3v10" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
-                    <span class="kanban-card-die">${sample.die_number} v${sample.die_version}</span>
+                    <span class="kanban-card-die">${escapeHtml(sample.die_number)} ${formatDieVersion(sample.die_version)}</span>
                 </div>
                 <div class="kanban-card-meta-row">
                     <svg viewBox="0 0 16 16" fill="none">
@@ -302,8 +319,8 @@ function renderKanbanCard(sample) {
                         <path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                     <span class="kanban-card-owner">
-                        <span class="owner-avatar-small">${getInitials(sample.owner)}</span>
-                        ${sample.owner}
+                        <span class="owner-avatar-small">${escapeHtml(getInitials(sample.owner))}</span>
+                        ${escapeHtml(sample.owner)}
                     </span>
                 </div>
                 <div class="kanban-card-meta-row">
@@ -312,27 +329,27 @@ function renderKanbanCard(sample) {
                         <path d="M16 2v4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         <path d="M3 9h10" stroke="currentColor" stroke-width="1.5"/>
                     </svg>
-                    <span class="kanban-card-deadline ${deadlineClass}">${deadlineText}</span>
+                    <span class="kanban-card-deadline ${deadlineClass}">${escapeHtml(deadlineText)}</span>
                 </div>
             </div>
             ${riskFlags.length > 0 ? `
                 <div class="kanban-card-risk-flags">
                     ${riskFlags.map(flag => `
-                        <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${flag}</span>
+                        <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${escapeHtml(flag)}</span>
                     `).join('')}
                 </div>
             ` : ''}
             <div class="kanban-card-stats">
                 <span class="kanban-card-stat">
-                    <span class="kanban-card-stat-value">${sample.modification_count}</span>
+                    <span class="kanban-card-stat-value">${escapeHtml(sample.modification_count)}</span>
                     修改
                 </span>
                 <span class="kanban-card-stat">
-                    <span class="kanban-card-stat-value">${sample.test_failure_count}</span>
+                    <span class="kanban-card-stat-value">${escapeHtml(sample.test_failure_count)}</span>
                     测试失败
                 </span>
                 <span class="kanban-card-stat">
-                    <span class="kanban-card-stat-value">第${sample.test_round}轮</span>
+                    <span class="kanban-card-stat-value">第${escapeHtml(sample.test_round)}轮</span>
                     测试
                 </span>
             </div>
@@ -350,16 +367,16 @@ function renderCustomerTable(data) {
     const tbody = document.getElementById('customer-table-body');
     tbody.innerHTML = data.map(item => `
         <tr>
-            <td><strong>${item.customer_name}</strong></td>
-            <td>${item.total}</td>
+            <td><strong>${escapeHtml(item.customer_name)}</strong></td>
+            <td>${escapeHtml(item.total)}</td>
             <td>
                 <div class="status-badges">
                     ${Object.entries(item.status_breakdown).map(([status, count]) => `
-                        <span class="status-badge ${status}">${status} ${count}</span>
+                        <span class="status-badge ${escapeHtml(status)}">${escapeHtml(status)} ${escapeHtml(count)}</span>
                     `).join('')}
                 </div>
             </td>
-            <td class="overdue-count">${item.overdue_count > 0 ? item.overdue_count : '-'}</td>
+            <td class="overdue-count">${escapeHtml(item.overdue_count > 0 ? item.overdue_count : '-')}</td>
         </tr>
     `).join('');
     
@@ -376,12 +393,12 @@ function renderSpecTable(data) {
     const tbody = document.getElementById('spec-table-body');
     tbody.innerHTML = data.map(item => `
         <tr>
-            <td><strong>${item.board_spec}</strong></td>
-            <td>${item.total}</td>
-            <td>${item.cracking_count > 0 ? item.cracking_count : '-'}</td>
-            <td>${item.reject_count > 0 ? item.reject_count : '-'}</td>
+            <td><strong>${escapeHtml(item.board_spec)}</strong></td>
+            <td>${escapeHtml(item.total)}</td>
+            <td>${escapeHtml(item.cracking_count > 0 ? item.cracking_count : '-')}</td>
+            <td>${escapeHtml(item.reject_count > 0 ? item.reject_count : '-')}</td>
             <td>
-                <span class="risk-level ${item.risk_level}">
+                <span class="risk-level ${escapeHtml(item.risk_level)}">
                     ${item.risk_level === 'high' ? '高风险' : 
                       item.risk_level === 'medium' ? '中风险' : 
                       item.risk_level === 'low' ? '低风险' : '安全'}
@@ -405,19 +422,19 @@ function renderOwnerTable(data) {
         <tr>
             <td>
                 <span style="display: flex; align-items: center; gap: 8px;">
-                    <span class="owner-avatar-small">${getInitials(item.owner)}</span>
-                    <strong>${item.owner}</strong>
+                    <span class="owner-avatar-small">${escapeHtml(getInitials(item.owner))}</span>
+                    <strong>${escapeHtml(item.owner)}</strong>
                 </span>
             </td>
-            <td>${item.total}</td>
+            <td>${escapeHtml(item.total)}</td>
             <td>
                 <div class="status-badges">
                     ${Object.entries(item.status_breakdown).map(([status, count]) => `
-                        <span class="status-badge ${status}">${status} ${count}</span>
+                        <span class="status-badge ${escapeHtml(status)}">${escapeHtml(status)} ${escapeHtml(count)}</span>
                     `).join('')}
                 </div>
             </td>
-            <td class="overdue-count">${item.overdue_count > 0 ? item.overdue_count : '-'}</td>
+            <td class="overdue-count">${escapeHtml(item.overdue_count > 0 ? item.overdue_count : '-')}</td>
         </tr>
     `).join('');
     
@@ -441,7 +458,8 @@ async function showSampleDetail(sampleId) {
 }
 
 function renderSampleDetail(detail) {
-    document.getElementById('detail-title').textContent = `${detail.project_name} - ${detail.die_number}`;
+    const titleEl = document.getElementById('detail-title');
+    titleEl.textContent = `${detail.project_name} - ${detail.die_number}`;
     
     const riskFlags = detail.risk_flags ? detail.risk_flags.filter(f => f !== '正常') : [];
     
@@ -451,57 +469,57 @@ function renderSampleDetail(detail) {
             <div class="detail-info-grid">
                 <div class="detail-info-item">
                     <span class="detail-info-label">项目名称</span>
-                    <span class="detail-info-value">${detail.project_name}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.project_name)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">客户名称</span>
-                    <span class="detail-info-value">${detail.customer_name}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.customer_name)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">纸板规格</span>
-                    <span class="detail-info-value">${detail.board_spec}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.board_spec)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">刀模编号</span>
-                    <span class="detail-info-value">${detail.die_number}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.die_number)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">刀模版本</span>
-                    <span class="detail-info-value">v${detail.die_version}</span>
+                    <span class="detail-info-value">${formatDieVersion(detail.die_version)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">当前状态</span>
-                    <span class="detail-info-value status ${detail.status}">${detail.status}</span>
+                    <span class="detail-info-value status ${escapeHtml(detail.status)}">${escapeHtml(detail.status)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">责任人</span>
-                    <span class="detail-info-value">${detail.owner}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.owner)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">优先级</span>
-                    <span class="detail-info-value">${detail.priority}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.priority)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">截止日期</span>
-                    <span class="detail-info-value">${formatDateOnly(detail.deadline)}</span>
+                    <span class="detail-info-value">${escapeHtml(formatDateOnly(detail.deadline))}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">创建人</span>
-                    <span class="detail-info-value">${detail.created_by}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.created_by)}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">创建时间</span>
-                    <span class="detail-info-value">${formatDate(detail.created_at)}</span>
+                    <span class="detail-info-value">${escapeHtml(formatDate(detail.created_at))}</span>
                 </div>
                 <div class="detail-info-item">
                     <span class="detail-info-label">更新时间</span>
-                    <span class="detail-info-value">${formatDate(detail.updated_at)}</span>
+                    <span class="detail-info-value">${escapeHtml(formatDate(detail.updated_at))}</span>
                 </div>
             </div>
             ${detail.notes ? `
                 <div class="detail-info-item" style="margin-top: 16px;">
                     <span class="detail-info-label">备注</span>
-                    <span class="detail-info-value">${detail.notes}</span>
+                    <span class="detail-info-value">${escapeHtml(detail.notes)}</span>
                 </div>
             ` : ''}
             ${riskFlags.length > 0 ? `
@@ -509,7 +527,7 @@ function renderSampleDetail(detail) {
                     <span class="detail-info-label">风险标识</span>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         ${riskFlags.map(flag => `
-                            <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${flag}</span>
+                            <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${escapeHtml(flag)}</span>
                         `).join('')}
                     </div>
                 </div>
@@ -537,15 +555,15 @@ function renderSampleDetail(detail) {
                 <div class="record-card test">
                     <div class="record-header">
                         <span class="record-round">
-                            <span class="record-round-badge">${record.round}</span>
-                            第 ${record.round} 轮测试
+                            <span class="record-round-badge">${escapeHtml(record.round)}</span>
+                            第 ${escapeHtml(record.round)} 轮测试
                         </span>
-                        <span class="record-date">${formatDate(record.test_date)}</span>
+                        <span class="record-date">${escapeHtml(formatDate(record.test_date))}</span>
                     </div>
                     <div class="record-grid">
                         <div class="record-item">
                             <span class="record-label">测试人员</span>
-                            <span class="record-value">${record.tester || '-'}</span>
+                            <span class="record-value">${escapeHtml(record.tester || '-')}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">测试结果</span>
@@ -555,22 +573,22 @@ function renderSampleDetail(detail) {
                         </div>
                         <div class="record-item">
                             <span class="record-label">折合测试</span>
-                            <span class="record-value">${record.folding_result || '-'}</span>
+                            <span class="record-value">${escapeHtml(record.folding_result || '-')}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">压痕测试</span>
-                            <span class="record-value">${record.indentation_result || '-'}</span>
+                            <span class="record-value">${escapeHtml(record.indentation_result || '-')}</span>
                         </div>
                         ${record.cracking_description ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">开裂描述</span>
-                                <span class="record-value" style="color: var(--danger);">${record.cracking_description}</span>
+                                <span class="record-value" style="color: var(--danger);">${escapeHtml(record.cracking_description)}</span>
                             </div>
                         ` : ''}
                         ${record.notes ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">备注</span>
-                                <span class="record-value">${record.notes}</span>
+                                <span class="record-value">${escapeHtml(record.notes)}</span>
                             </div>
                         ` : ''}
                     </div>
@@ -588,30 +606,30 @@ function renderSampleDetail(detail) {
                 <div class="record-card modify">
                     <div class="record-header">
                         <span class="record-round">
-                            <span class="record-round-badge">${record.round}</span>
-                            第 ${record.round} 轮修改
+                            <span class="record-round-badge">${escapeHtml(record.round)}</span>
+                            第 ${escapeHtml(record.round)} 轮修改
                         </span>
-                        <span class="record-date">${formatDate(record.modify_date)}</span>
+                        <span class="record-date">${escapeHtml(formatDate(record.modify_date))}</span>
                     </div>
                     <div class="record-grid">
                         <div class="record-item">
                             <span class="record-label">修改人员</span>
-                            <span class="record-value">${record.modifier}</span>
+                            <span class="record-value">${escapeHtml(record.modifier)}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">修改动作</span>
-                            <span class="record-value">${record.modification_action}</span>
+                            <span class="record-value">${escapeHtml(record.modification_action)}</span>
                         </div>
                         ${record.reason ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">修改原因</span>
-                                <span class="record-value">${record.reason}</span>
+                                <span class="record-value">${escapeHtml(record.reason)}</span>
                             </div>
                         ` : ''}
                         ${record.notes ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">备注</span>
-                                <span class="record-value">${record.notes}</span>
+                                <span class="record-value">${escapeHtml(record.notes)}</span>
                             </div>
                         ` : ''}
                     </div>
@@ -629,24 +647,24 @@ function renderSampleDetail(detail) {
                 <div class="record-card reject">
                     <div class="record-header">
                         <span class="record-round">
-                            <span class="record-round-badge">${record.round}</span>
-                            第 ${record.round} 次退回
+                            <span class="record-round-badge">${escapeHtml(record.round)}</span>
+                            第 ${escapeHtml(record.round)} 次退回
                         </span>
-                        <span class="record-date">${formatDate(record.reject_date)}</span>
+                        <span class="record-date">${escapeHtml(formatDate(record.reject_date))}</span>
                     </div>
                     <div class="record-grid">
                         <div class="record-item">
                             <span class="record-label">退回人员</span>
-                            <span class="record-value">${record.rejecter}</span>
+                            <span class="record-value">${escapeHtml(record.rejecter)}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">退回原因</span>
-                            <span class="record-value" style="color: var(--danger);">${record.reason}</span>
+                            <span class="record-value" style="color: var(--danger);">${escapeHtml(record.reason)}</span>
                         </div>
                         ${record.description ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">详细描述</span>
-                                <span class="record-value">${record.description}</span>
+                                <span class="record-value">${escapeHtml(record.description)}</span>
                             </div>
                         ` : ''}
                     </div>
@@ -661,20 +679,20 @@ function renderSampleDetail(detail) {
                     <div class="seal-info-grid">
                         <div class="record-item">
                             <span class="record-label">封样人员</span>
-                            <span class="record-value">${detail.seal_record.sealer}</span>
+                            <span class="record-value">${escapeHtml(detail.seal_record.sealer)}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">封样日期</span>
-                            <span class="record-value">${formatDate(detail.seal_record.seal_date)}</span>
+                            <span class="record-value">${escapeHtml(formatDate(detail.seal_record.seal_date))}</span>
                         </div>
                         <div class="record-item">
                             <span class="record-label">封样版本</span>
-                            <span class="record-value">v${detail.seal_record.version}</span>
+                            <span class="record-value">${formatDieVersion(detail.seal_record.version)}</span>
                         </div>
                         ${detail.seal_record.notes ? `
                             <div class="record-item" style="grid-column: 1 / -1;">
                                 <span class="record-label">备注</span>
-                                <span class="record-value">${detail.seal_record.notes}</span>
+                                <span class="record-value">${escapeHtml(detail.seal_record.notes)}</span>
                             </div>
                         ` : ''}
                     </div>
@@ -707,11 +725,11 @@ function renderTimelineItem(log) {
         if (result.modification_action) fields.push(['修改动作', result.modification_action]);
         if (result.reason) fields.push(['原因', result.reason]);
         if (result.reject_reason) fields.push(['退回原因', result.reject_reason]);
-        if (result.seal_version) fields.push(['封样版本', `v${result.seal_version}`]);
+        if (result.seal_version) fields.push(['封样版本', formatDieVersion(result.seal_version)]);
         if (result.from_status) fields.push(['状态变更', `${result.from_status} → ${result.to_status}`]);
         if (result.owner) fields.push(['责任人', result.owner]);
         if (result.priority) fields.push(['优先级', result.priority]);
-        if (result.die_version) fields.push(['刀模版本', `v${result.die_version}`]);
+        if (result.die_version) fields.push(['刀模版本', formatDieVersion(result.die_version)]);
         if (result.opener) fields.push(['开样人员', result.opener]);
         
         if (fields.length > 0) {
@@ -719,14 +737,14 @@ function renderTimelineItem(log) {
                 <div class="timeline-content">
                     ${fields.map(([label, value]) => `
                         <div class="timeline-content-row">
-                            <span class="timeline-content-label">${label}</span>
-                            <span class="timeline-content-value">${value}</span>
+                            <span class="timeline-content-label">${escapeHtml(label)}</span>
+                            <span class="timeline-content-value">${escapeHtml(value)}</span>
                         </div>
                     `).join('')}
                     ${log.notes ? `
                         <div class="timeline-content-row">
                             <span class="timeline-content-label">备注</span>
-                            <span class="timeline-content-value">${log.notes}</span>
+                            <span class="timeline-content-value">${escapeHtml(log.notes)}</span>
                         </div>
                     ` : ''}
                 </div>
@@ -736,7 +754,7 @@ function renderTimelineItem(log) {
                 <div class="timeline-content">
                     <div class="timeline-content-row">
                         <span class="timeline-content-label">备注</span>
-                        <span class="timeline-content-value">${log.notes}</span>
+                        <span class="timeline-content-value">${escapeHtml(log.notes)}</span>
                     </div>
                 </div>
             `;
@@ -746,7 +764,7 @@ function renderTimelineItem(log) {
             <div class="timeline-content">
                 <div class="timeline-content-row">
                     <span class="timeline-content-label">备注</span>
-                    <span class="timeline-content-value">${log.notes}</span>
+                    <span class="timeline-content-value">${escapeHtml(log.notes)}</span>
                 </div>
             </div>
         `;
@@ -755,9 +773,9 @@ function renderTimelineItem(log) {
     return `
         <div class="timeline-item ${itemClass}">
             <div class="timeline-header">
-                <span class="timeline-type ${log.operation_type}">${log.operation_type}</span>
-                <span class="timeline-operator">${log.operator}</span>
-                <span class="timeline-time">${formatDate(log.operation_time)}</span>
+                <span class="timeline-type ${escapeHtml(log.operation_type)}">${escapeHtml(log.operation_type)}</span>
+                <span class="timeline-operator">${escapeHtml(log.operator)}</span>
+                <span class="timeline-time">${escapeHtml(formatDate(log.operation_time))}</span>
             </div>
             ${contentHtml}
         </div>

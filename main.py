@@ -267,6 +267,24 @@ async def kanban_page():
     """)
 
 
+def _parse_date_filter(date_str: Optional[str], is_end: bool = False) -> Optional[datetime]:
+    if not date_str or not date_str.strip():
+        return None
+    date_str = date_str.strip()
+    try:
+        if len(date_str) == 10:
+            d = datetime.strptime(date_str, "%Y-%m-%d")
+            if is_end:
+                d = d.replace(hour=23, minute=59, second=59, microsecond=999999)
+            return d
+        return datetime.fromisoformat(date_str)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"日期格式错误: '{date_str}'，请使用 YYYY-MM-DD 或 ISO 格式"
+        ) from e
+
+
 @app.get("/api/kanban/samples", response_model=List[KanbanSampleItem], tags=["看板"])
 async def get_kanban_samples(
     customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
@@ -275,8 +293,8 @@ async def get_kanban_samples(
     status: Optional[SampleStatus] = Query(None, description="状态"),
     owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
     priority: Optional[str] = Query(None, description="优先级"),
-    date_from: Optional[datetime] = Query(None, description="创建日期起"),
-    date_to: Optional[datetime] = Query(None, description="创建日期止"),
+    date_from: Optional[str] = Query(None, description="创建日期起 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="创建日期止 (YYYY-MM-DD，包含当天)"),
     current_user: User = Depends(get_current_user),
 ):
     return store.query_kanban_samples(
@@ -286,8 +304,8 @@ async def get_kanban_samples(
         status=status,
         owner=owner,
         priority=priority,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=_parse_date_filter(date_from, is_end=False),
+        date_to=_parse_date_filter(date_to, is_end=True),
     )
 
 
@@ -299,8 +317,8 @@ async def get_kanban_summary(
     status: Optional[SampleStatus] = Query(None, description="状态"),
     owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
     priority: Optional[str] = Query(None, description="优先级"),
-    date_from: Optional[datetime] = Query(None, description="创建日期起"),
-    date_to: Optional[datetime] = Query(None, description="创建日期止"),
+    date_from: Optional[str] = Query(None, description="创建日期起 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="创建日期止 (YYYY-MM-DD，包含当天)"),
     current_user: User = Depends(get_current_user),
 ):
     return store.get_kanban_summary(
@@ -310,8 +328,8 @@ async def get_kanban_summary(
         status=status,
         owner=owner,
         priority=priority,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=_parse_date_filter(date_from, is_end=False),
+        date_to=_parse_date_filter(date_to, is_end=True),
     )
 
 
