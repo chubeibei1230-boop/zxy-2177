@@ -14,6 +14,7 @@ from schemas import (
     ConfirmRequest, RejectRequest, StatusChangeRequest,
     Token, User, AnomalyReport, RejectReasonDistribution, SpecRiskItem,
     OperationLog, OperationType, KanbanSampleItem, KanbanSummary,
+    UrgeRecord, UrgeStatus, UrgeCreate, UrgeHandle, UrgeSummary,
 )
 from auth import (
     authenticate_user, FAKE_USERS_DB, create_access_token,
@@ -114,7 +115,8 @@ async def get_sample(
     if not s:
         raise HTTPException(status_code=404, detail="打样记录不存在")
     timeline = store.get_sample_timeline(sample_id)
-    return DieSampleDetail(**s.model_dump(), timeline=timeline)
+    urge_records = store.get_sample_urges(sample_id)
+    return DieSampleDetail(**s.model_dump(), timeline=timeline, urge_records=urge_records)
 
 
 @app.post("/api/samples/{sample_id}/open", response_model=DieSample, tags=["刀模打样-状态流转"])
@@ -295,6 +297,8 @@ async def get_kanban_samples(
     priority: Optional[str] = Query(None, description="优先级"),
     date_from: Optional[str] = Query(None, description="创建日期起 (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="创建日期止 (YYYY-MM-DD，包含当天)"),
+    has_pending_urge: Optional[bool] = Query(None, description="是否有待处理催办"),
+    risk_type: Optional[str] = Query(None, description="风险类型: overdue/near_deadline/repeated_modification/multiple_test_failure"),
     current_user: User = Depends(get_current_user),
 ):
     return store.query_kanban_samples(
@@ -306,6 +310,8 @@ async def get_kanban_samples(
         priority=priority,
         date_from=_parse_date_filter(date_from, is_end=False),
         date_to=_parse_date_filter(date_to, is_end=True),
+        has_pending_urge=has_pending_urge,
+        risk_type=risk_type,
     )
 
 
@@ -319,6 +325,8 @@ async def get_kanban_summary(
     priority: Optional[str] = Query(None, description="优先级"),
     date_from: Optional[str] = Query(None, description="创建日期起 (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="创建日期止 (YYYY-MM-DD，包含当天)"),
+    has_pending_urge: Optional[bool] = Query(None, description="是否有待处理催办"),
+    risk_type: Optional[str] = Query(None, description="风险类型: overdue/near_deadline/repeated_modification/multiple_test_failure"),
     current_user: User = Depends(get_current_user),
 ):
     return store.get_kanban_summary(
@@ -330,7 +338,114 @@ async def get_kanban_summary(
         priority=priority,
         date_from=_parse_date_filter(date_from, is_end=False),
         date_to=_parse_date_filter(date_to, is_end=True),
+        has_pending_urge=has_pending_urge,
+        risk_type=risk_type,
     )
+
+
+@app.post("/api/urges", response_model=UrgeRecord, tags=["催办管理"], status_code=201)
+async def create_urge(
+    data: UrgeCreate,
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return store.create_urge(data, urge_by=current_user.username)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/urges", response_model=List[UrgeRecord], tags=["催办管理"])
+async def list_urges(
+    sample_id: Optional[str] = Query(None, description="打样记录ID"),
+    status: Optional[UrgeStatus] = Query(None, description="催办状态"),
+    urge_by: Optional[str] = Query(None, description="催办人（模糊匹配）"),
+    handler: Optional[str] = Query(None, description="处理人（模糊匹配）"),
+    urge_type: Optional[str] = Query(None, description="催办类型（模糊匹配）"),
+    date_from: Optional[str] = Query(None, description="催办日期起 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="催办日期止 (YYYY-MM-DD，包含当天)"),
+    project_name: Optional[str] = Query(None, description="项目名称（模糊匹配）"),
+    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
+    die_number: Optional[str] = Query(None, description="刀模编号（模糊匹配）"),
+    owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
+    current_user: User = Depends(get_current_user),
+):
+    return store.query_urges(
+        sample_id=sample_id,
+        status=status,
+        urge_by=urge_by,
+        handler=handler,
+        urge_type=urge_type,
+        date_from=_parse_date_filter(date_from, is_end=False),
+        date_to=_parse_date_filter(date_to, is_end=True),
+        project_name=project_name,
+        customer_name=customer_name,
+        die_number=die_number,
+        owner=owner,
+    )
+
+
+@app.get("/api/urges/summary", response_model=UrgeSummary, tags=["催办管理"])
+async def get_urge_summary(
+    sample_id: Optional[str] = Query(None, description="打样记录ID"),
+    status: Optional[UrgeStatus] = Query(None, description="催办状态"),
+    urge_by: Optional[str] = Query(None, description="催办人（模糊匹配）"),
+    handler: Optional[str] = Query(None, description="处理人（模糊匹配）"),
+    urge_type: Optional[str] = Query(None, description="催办类型（模糊匹配）"),
+    date_from: Optional[str] = Query(None, description="催办日期起 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="催办日期止 (YYYY-MM-DD，包含当天)"),
+    project_name: Optional[str] = Query(None, description="项目名称（模糊匹配）"),
+    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
+    die_number: Optional[str] = Query(None, description="刀模编号（模糊匹配）"),
+    owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
+    current_user: User = Depends(get_current_user),
+):
+    return store.get_urge_summary(
+        sample_id=sample_id,
+        status=status,
+        urge_by=urge_by,
+        handler=handler,
+        urge_type=urge_type,
+        date_from=_parse_date_filter(date_from, is_end=False),
+        date_to=_parse_date_filter(date_to, is_end=True),
+        project_name=project_name,
+        customer_name=customer_name,
+        die_number=die_number,
+        owner=owner,
+    )
+
+
+@app.get("/api/urges/{urge_id}", response_model=UrgeRecord, tags=["催办管理"])
+async def get_urge(
+    urge_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    urge = store.get_urge(urge_id)
+    if not urge:
+        raise HTTPException(status_code=404, detail="催办记录不存在")
+    return urge
+
+
+@app.post("/api/urges/{urge_id}/handle", response_model=UrgeRecord, tags=["催办管理"])
+async def handle_urge(
+    urge_id: str,
+    data: UrgeHandle,
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return store.handle_urge(urge_id, data, handler=current_user.username)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/samples/{sample_id}/urges", response_model=List[UrgeRecord], tags=["催办管理"])
+async def get_sample_urges(
+    sample_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return store.get_sample_urges(sample_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 if __name__ == "__main__":

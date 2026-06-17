@@ -18,6 +18,7 @@ from schemas import (
     OperationLog, OperationType, OperationLogQuery,
     KanbanRiskFlag, KanbanSampleItem, KanbanSummary,
     StatusSummaryItem, CustomerSummaryItem, BoardSpecSummaryItem, OwnerSummaryItem,
+    UrgeRecord, UrgeStatus, UrgeCreate, UrgeHandle, UrgeSummary,
 )
 
 
@@ -38,6 +39,8 @@ class DieSampleStore:
         self._index_project_version: Dict[str, str] = {}
         self.operation_logs: Dict[str, OperationLog] = {}
         self._index_sample_logs: Dict[str, List[str]] = defaultdict(list)
+        self.urge_records: Dict[str, UrgeRecord] = {}
+        self._index_sample_urges: Dict[str, List[str]] = defaultdict(list)
         self._load_from_disk()
 
     def _load_from_disk(self) -> None:
@@ -53,6 +56,10 @@ class DieSampleStore:
                 self.operation_logs[lid] = OperationLog(**l_data)
             for sid, lids in data.get("index_sample_logs", {}).items():
                 self._index_sample_logs[sid] = lids
+            for uid, u_data in data.get("urge_records", {}).items():
+                self.urge_records[uid] = UrgeRecord(**u_data)
+            for sid, uids in data.get("index_sample_urges", {}).items():
+                    self._index_sample_urges[sid] = uids
         except Exception as e:
             print(f"[WARN] 加载数据文件失败: {e}，将使用空数据初始化")
 
@@ -62,6 +69,8 @@ class DieSampleStore:
             "index_project_version": self._index_project_version,
             "operation_logs": {lid: l.model_dump(mode="json") for lid, l in self.operation_logs.items()},
             "index_sample_logs": dict(self._index_sample_logs),
+            "urge_records": {uid: u.model_dump(mode="json") for uid, u in self.urge_records.items()},
+            "index_sample_urges": dict(self._index_sample_urges),
         }
         dir_name = os.path.dirname(os.path.abspath(self.data_file)) or "."
         with tempfile.NamedTemporaryFile(
@@ -661,6 +670,209 @@ class DieSampleStore:
 
         return risk_flags, days_remaining, modification_count, test_failure_count
 
+
+
+    def create_urge(self, data: UrgeCreate, urge_by: str) -> UrgeRecord:
+        sample = self._require(data.sample_id)
+        urge_id = str(uuid.uuid4())
+        urge = UrgeRecord(
+            id=urge_id,
+            sample_id=data.sample_id,
+            project_name=sample.project_name,
+            customer_name=sample.customer_name,
+            die_number=sample.die_number,
+            urge_type=data.urge_type,
+            urge_reason=data.urge_reason,
+            description=data.description,
+            urge_by=urge_by,
+            priority=data.priority or "普通",
+            deadline=data.deadline,
+        )
+        self.urge_records[urge_id] = urge
+        self._index_sample_urges[data.sample_id].append(urge_id)
+        self._add_operation_log(
+            sample=sample,
+            operation_type=OperationType.URGE,
+            operator=urge_by,
+            previous_status=sample.status,
+            current_status=sample.status,
+            notes=data.description,
+            business_result={
+                "urge_id": urge_id,
+                "urge_type": data.urge_type,
+                "urge_reason": data.urge_reason,
+                "priority": data.priority,
+            },
+        )
+        self._save()
+        return urge
+
+    def get_urge(self, urge_id: str) -> Optional[UrgeRecord]:
+        return self.urge_records.get(urge_id)
+
+    def get_sample_urges(self, sample_id: str) -> List[UrgeRecord]:
+        self._require(sample_id)
+        urge_ids = self._index_sample_urges.get(sample_id, [])
+        urges = [self.urge_records[uid] for uid in urge_ids if uid in self.urge_records]
+        urges.sort(key=lambda x: x.urge_time, reverse=True)
+        return urges
+
+    def query_urges(
+        self,
+        sample_id: Optional[str] = None,
+        status: Optional[UrgeStatus] = None,
+        urge_by: Optional[str] = None,
+        handler: Optional[str] = None,
+        urge_type: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        project_name: Optional[str] = None,
+        customer_name: Optional[str] = None,
+        die_number: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> List[UrgeRecord]:
+        results = []
+        for urge in self.urge_records.values():
+            if sample_id and urge.sample_id != sample_id:
+                continue
+            if status and urge.status != status:
+                continue
+            if urge_by and urge_by not in urge.urge_by:
+                continue
+            if handler:
+                if not urge.handler or handler not in urge.handler:
+                    continue
+            if urge_type and urge_type not in urge.urge_type:
+                continue
+            if date_from and urge.urge_time < date_from:
+                continue
+            if date_to and urge.urge_time > date_to:
+                continue
+            if project_name and project_name not in urge.project_name:
+                continue
+            if customer_name and customer_name not in urge.customer_name:
+                continue
+            if die_number and die_number not in urge.die_number:
+                continue
+            if owner:
+                sample = self.samples.get(urge.sample_id)
+                if not sample or owner not in sample.owner:
+                    continue
+            results.append(urge)
+        results.sort(key=lambda x: x.urge_time, reverse=True)
+        return results
+
+    def handle_urge(self, urge_id: str, data: UrgeHandle, handler: str) -> UrgeRecord:
+        urge = self.urge_records.get(urge_id)
+        if not urge:
+            raise ValueError(f"催办记录 {urge_id} 不存在")
+        if urge.status in [UrgeStatus.RESOLVED, UrgeStatus.CLOSED]:
+            raise ValueError("该催办已处理完成，无法重复处理")
+        
+        urge.handler = data.handler or handler
+        urge.handle_time = datetime.now()
+        urge.handle_result = data.handle_result
+        urge.status = data.new_status or UrgeStatus.RESOLVED
+        
+        sample = self.samples.get(urge.sample_id)
+        if sample:
+            self._add_operation_log(
+                sample=sample,
+                operation_type=OperationType.URGE_HANDLE,
+                operator=handler,
+                previous_status=sample.status,
+                current_status=sample.status,
+                notes=data.handle_result,
+                business_result={
+                    "urge_id": urge_id,
+                    "handle_result": data.handle_result,
+                    "new_status": urge.status.value,
+                },
+            )
+        
+        self._save()
+        return urge
+
+    def get_urge_summary(
+        self,
+        sample_id: Optional[str] = None,
+        status: Optional[UrgeStatus] = None,
+        urge_by: Optional[str] = None,
+        handler: Optional[str] = None,
+        urge_type: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        project_name: Optional[str] = None,
+        customer_name: Optional[str] = None,
+        die_number: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> UrgeSummary:
+        urges = self.query_urges(
+            sample_id=sample_id,
+            status=status,
+            urge_by=urge_by,
+            handler=handler,
+            urge_type=urge_type,
+            date_from=date_from,
+            date_to=date_to,
+            project_name=project_name,
+            customer_name=customer_name,
+            die_number=die_number,
+            owner=owner,
+        )
+        
+        now = datetime.now()
+        pending_count = 0
+        processing_count = 0
+        resolved_count = 0
+        closed_count = 0
+        high_risk_unclosed_count = 0
+        type_dist: Dict[str, int] = defaultdict(int)
+        
+        for urge in urges:
+            type_dist[urge.urge_type] += 1
+            if urge.status == UrgeStatus.PENDING:
+                pending_count += 1
+            elif urge.status == UrgeStatus.PROCESSING:
+                processing_count += 1
+            elif urge.status == UrgeStatus.RESOLVED:
+                resolved_count += 1
+            elif urge.status == UrgeStatus.CLOSED:
+                closed_count += 1
+            
+            if urge.status in [UrgeStatus.PENDING, UrgeStatus.PROCESSING]:
+                sample = self.samples.get(urge.sample_id)
+                if sample:
+                    risk_flags, _, _, _ = self._calculate_risk_flags(sample, now)
+                    if len([f for f in risk_flags if f != KanbanRiskFlag.NONE]) >= 1:
+                        high_risk_unclosed_count += 1
+        
+        return UrgeSummary(
+            total_urges=len(urges),
+            pending_count=pending_count,
+            processing_count=processing_count,
+            resolved_count=resolved_count,
+            closed_count=closed_count,
+            high_risk_unclosed_count=high_risk_unclosed_count,
+            urge_type_distribution=dict(type_dist),
+        )
+
+    def _get_sample_urge_stats(self, sample_id: str) -> Tuple[int, int, Optional[datetime]]:
+        urge_ids = self._index_sample_urges.get(sample_id, [])
+        total_count = len(urge_ids)
+        pending_count = 0
+        latest_time = None
+        
+        for uid in urge_ids:
+            urge = self.urge_records.get(uid)
+            if urge:
+                if urge.status in [UrgeStatus.PENDING, UrgeStatus.PROCESSING]:
+                    pending_count += 1
+                if latest_time is None or urge.urge_time > latest_time:
+                    latest_time = urge.urge_time
+        
+        return pending_count, total_count, latest_time
+
     def query_kanban_samples(
         self,
         customer_name: Optional[str] = None,
@@ -671,6 +883,8 @@ class DieSampleStore:
         priority: Optional[str] = None,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
+        has_pending_urge: Optional[bool] = None,
+        risk_type: Optional[str] = None,
     ) -> List[KanbanSampleItem]:
         now = datetime.now()
         results: List[KanbanSampleItem] = []
@@ -694,6 +908,24 @@ class DieSampleStore:
                 continue
 
             risk_flags, days_remaining, mod_count, test_fail_count = self._calculate_risk_flags(s, now)
+            
+            if risk_type:
+                risk_flag_map = {
+                    'overdue': KanbanRiskFlag.OVERDUE,
+                    'near_deadline': KanbanRiskFlag.NEAR_DEADLINE,
+                    'repeated_modification': KanbanRiskFlag.REPEATED_MODIFICATION,
+                    'multiple_test_failure': KanbanRiskFlag.MULTIPLE_TEST_FAILURE,
+                }
+                target_flag = risk_flag_map.get(risk_type)
+                if target_flag and target_flag not in risk_flags:
+                    continue
+            
+            pending_urge_count, total_urge_count, latest_urge_time = self._get_sample_urge_stats(s.id)
+            
+            if has_pending_urge is not None:
+                has_pending = pending_urge_count > 0
+                if has_pending != has_pending_urge:
+                    continue
 
             results.append(KanbanSampleItem(
                 **s.model_dump(),
@@ -701,11 +933,15 @@ class DieSampleStore:
                 days_remaining=days_remaining,
                 modification_count=mod_count,
                 test_failure_count=test_fail_count,
+                pending_urge_count=pending_urge_count,
+                total_urge_count=total_urge_count,
+                latest_urge_time=latest_urge_time,
             ))
 
         results.sort(key=lambda x: (
             0 if KanbanRiskFlag.OVERDUE in x.risk_flags else 1,
             0 if KanbanRiskFlag.NEAR_DEADLINE in x.risk_flags else 1,
+            0 if x.pending_urge_count > 0 else 1,
             {"紧急": 0, "高": 1, "普通": 2, "低": 3}.get(x.priority, 2),
             x.created_at,
         ))
@@ -722,6 +958,8 @@ class DieSampleStore:
         priority: Optional[str] = None,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
+        has_pending_urge: Optional[bool] = None,
+        risk_type: Optional[str] = None,
     ) -> KanbanSummary:
         now = datetime.now()
         filtered_samples: List[DieSample] = []
@@ -743,6 +981,27 @@ class DieSampleStore:
                 continue
             if date_to and s.created_at > date_to:
                 continue
+            
+            risk_flags, _, _, _ = self._calculate_risk_flags(s, now)
+            
+            if risk_type:
+                risk_flag_map = {
+                    'overdue': KanbanRiskFlag.OVERDUE,
+                    'near_deadline': KanbanRiskFlag.NEAR_DEADLINE,
+                    'repeated_modification': KanbanRiskFlag.REPEATED_MODIFICATION,
+                    'multiple_test_failure': KanbanRiskFlag.MULTIPLE_TEST_FAILURE,
+                }
+                target_flag = risk_flag_map.get(risk_type)
+                if target_flag and target_flag not in risk_flags:
+                    continue
+            
+            pending_urge_count, _, _ = self._get_sample_urge_stats(s.id)
+            
+            if has_pending_urge is not None:
+                has_pending = pending_urge_count > 0
+                if has_pending != has_pending_urge:
+                    continue
+            
             filtered_samples.append(s)
 
         total = len(filtered_samples)
@@ -840,6 +1099,22 @@ class DieSampleStore:
             ))
         owner_summary.sort(key=lambda x: x.total, reverse=True)
 
+        pending_urge_count = 0
+        high_risk_unclosed_urge_count = 0
+        for s in filtered_samples:
+            urge_ids = self._index_sample_urges.get(s.id, [])
+            has_pending = False
+            for uid in urge_ids:
+                urge = self.urge_records.get(uid)
+                if urge and urge.status in [UrgeStatus.PENDING, UrgeStatus.PROCESSING]:
+                    has_pending = True
+                    break
+            if has_pending:
+                pending_urge_count += 1
+                risk_flags, _, _, _ = self._calculate_risk_flags(s, now)
+                if len([f for f in risk_flags if f != KanbanRiskFlag.NONE]) >= 1:
+                    high_risk_unclosed_urge_count += 1
+
         return KanbanSummary(
             total_samples=total,
             status_summary=status_summary,
@@ -849,4 +1124,6 @@ class DieSampleStore:
             high_risk_count=high_risk_count,
             overdue_count=overdue_count,
             near_deadline_count=near_deadline_count,
+            pending_urge_count=pending_urge_count,
+            high_risk_unclosed_urge_count=high_risk_unclosed_urge_count,
         )

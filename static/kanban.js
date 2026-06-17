@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8127/api';
+const API_BASE = '/api';
 
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
@@ -173,7 +173,9 @@ function getFilterParams() {
         owner: document.getElementById('filter-owner').value || null,
         priority: document.getElementById('filter-priority').value || null,
         date_from: document.getElementById('filter-date-from').value || null,
-        date_to: document.getElementById('filter-date-to').value || null
+        date_to: document.getElementById('filter-date-to').value || null,
+        risk_type: document.getElementById('filter-risk-type').value || null,
+        urge_status: document.getElementById('filter-urge-status').value || null
     };
 }
 
@@ -186,7 +188,17 @@ function buildQueryString(params) {
 
 async function loadData() {
     const filters = getFilterParams();
-    const queryString = buildQueryString(filters);
+    const queryParams = { ...filters };
+    
+    if (filters.urge_status === 'pending') {
+        queryParams.has_pending_urge = true;
+        delete queryParams.urge_status;
+    } else if (filters.urge_status === 'resolved') {
+        queryParams.has_pending_urge = false;
+        delete queryParams.urge_status;
+    }
+    
+    const queryString = buildQueryString(queryParams);
     
     try {
         const [samples, summary] = await Promise.all([
@@ -209,6 +221,8 @@ function renderStats(summary) {
     document.getElementById('stat-high-risk').textContent = summary.high_risk_count;
     document.getElementById('stat-overdue').textContent = summary.overdue_count;
     document.getElementById('stat-near-deadline').textContent = summary.near_deadline_count;
+    document.getElementById('stat-pending-urge').textContent = summary.pending_urge_count;
+    document.getElementById('stat-high-risk-unclosed').textContent = summary.high_risk_unclosed_urge_count;
 }
 
 function renderStatusBar(statusSummary) {
@@ -273,10 +287,12 @@ function renderKanbanCard(sample) {
     const riskFlags = sample.risk_flags.filter(f => f !== '正常');
     const hasOverdue = riskFlags.includes('已超期');
     const hasNearDeadline = riskFlags.includes('临近截止');
+    const hasPendingUrge = sample.pending_urge_count > 0;
     
     let cardClass = 'normal';
     if (hasOverdue) cardClass = 'overdue';
     else if (hasNearDeadline) cardClass = 'near-deadline';
+    else if (hasPendingUrge) cardClass = 'pending-urge';
     else if (sample.priority === '紧急') cardClass = 'urgent-priority';
     else if (sample.priority === '高') cardClass = 'high-priority';
     
@@ -332,11 +348,17 @@ function renderKanbanCard(sample) {
                     <span class="kanban-card-deadline ${deadlineClass}">${escapeHtml(deadlineText)}</span>
                 </div>
             </div>
-            ${riskFlags.length > 0 ? `
+            ${riskFlags.length > 0 || hasPendingUrge ? `
                 <div class="kanban-card-risk-flags">
                     ${riskFlags.map(flag => `
                         <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${escapeHtml(flag)}</span>
                     `).join('')}
+                    ${hasPendingUrge ? `
+                        <span class="risk-flag urge-pending">
+                            <span class="urge-count-badge">${sample.pending_urge_count}</span>
+                            待处理催办
+                        </span>
+                    ` : ''}
                 </div>
             ` : ''}
             <div class="kanban-card-stats">
@@ -462,10 +484,21 @@ function renderSampleDetail(detail) {
     titleEl.textContent = `${detail.project_name} - ${detail.die_number}`;
     
     const riskFlags = detail.risk_flags ? detail.risk_flags.filter(f => f !== '正常') : [];
+    const urgeRecords = detail.urge_records || [];
+    const pendingUrgeCount = urgeRecords.filter(u => u.status === '待处理' || u.status === '处理中').length;
     
     const html = `
         <div class="detail-section">
-            <h3 class="detail-section-title">基本信息</h3>
+            <div class="urge-section-header">
+                <h3 class="detail-section-title">基本信息</h3>
+                <button class="btn-urge" id="btn-create-urge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    发起催办
+                </button>
+            </div>
             <div class="detail-info-grid">
                 <div class="detail-info-item">
                     <span class="detail-info-label">项目名称</span>
@@ -522,16 +555,36 @@ function renderSampleDetail(detail) {
                     <span class="detail-info-value">${escapeHtml(detail.notes)}</span>
                 </div>
             ` : ''}
-            ${riskFlags.length > 0 ? `
+            ${riskFlags.length > 0 || pendingUrgeCount > 0 ? `
                 <div class="detail-info-item" style="margin-top: 16px;">
                     <span class="detail-info-label">风险标识</span>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         ${riskFlags.map(flag => `
                             <span class="risk-flag ${RISK_FLAG_CLASS_MAP[flag] || ''}">${escapeHtml(flag)}</span>
                         `).join('')}
+                        ${pendingUrgeCount > 0 ? `
+                            <span class="risk-flag urge-pending">
+                                <span class="urge-count-badge">${pendingUrgeCount}</span>
+                                待处理催办
+                            </span>
+                        ` : ''}
                     </div>
                 </div>
             ` : ''}
+        </div>
+        
+        <div class="detail-section">
+            <div class="urge-section-header">
+                <h3 class="urge-section-title">催办记录</h3>
+                <span class="urge-badge ${pendingUrgeCount > 0 ? 'pending' : 'resolved'}">
+                    ${pendingUrgeCount > 0 ? `${pendingUrgeCount} 条待处理` : '全部已处理'}
+                </span>
+            </div>
+            ${urgeRecords.length === 0 ? `
+                <div class="empty-state">
+                    <div class="empty-state-text">暂无催办记录</div>
+                </div>
+            ` : urgeRecords.map(urge => renderUrgeRecordCard(urge)).join('')}
         </div>
         
         <div class="detail-section">
@@ -702,6 +755,81 @@ function renderSampleDetail(detail) {
     `;
     
     document.getElementById('detail-body').innerHTML = html;
+    
+    const createUrgeBtn = document.getElementById('btn-create-urge');
+    if (createUrgeBtn) {
+        createUrgeBtn.addEventListener('click', () => openUrgeModal(detail.id));
+    }
+    
+    document.querySelectorAll('.btn-handle-urge').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const urgeId = e.target.dataset.urgeId;
+            openUrgeHandleModal(urgeId);
+        });
+    });
+}
+
+function renderUrgeRecordCard(urge) {
+    const statusClass = {
+        '待处理': 'pending',
+        '处理中': 'processing',
+        '已处理': 'resolved',
+        '已关闭': 'closed'
+    }[urge.status] || 'pending';
+    
+    const isPending = urge.status === '待处理' || urge.status === '处理中';
+    
+    return `
+        <div class="urge-record-card ${statusClass}">
+            <div class="urge-record-header">
+                <div class="urge-record-title">
+                    <span class="urge-badge ${statusClass}">${escapeHtml(urge.status)}</span>
+                    <span>${escapeHtml(urge.urge_type)}</span>
+                </div>
+                <span class="record-date">${escapeHtml(formatDate(urge.urge_time))}</span>
+            </div>
+            <div class="urge-record-meta">
+                <div class="urge-record-item">
+                    <span class="urge-record-label">催办原因</span>
+                    <span class="urge-record-value">${escapeHtml(urge.urge_reason)}</span>
+                </div>
+                <div class="urge-record-item">
+                    <span class="urge-record-label">催办人</span>
+                    <span class="urge-record-value">${escapeHtml(urge.urge_by)}</span>
+                </div>
+                <div class="urge-record-item">
+                    <span class="urge-record-label">优先级</span>
+                    <span class="urge-record-value">${escapeHtml(urge.priority)}</span>
+                </div>
+                ${urge.deadline ? `
+                    <div class="urge-record-item">
+                        <span class="urge-record-label">要求处理时间</span>
+                        <span class="urge-record-value">${escapeHtml(formatDate(urge.deadline))}</span>
+                    </div>
+                ` : ''}
+            </div>
+            ${urge.description ? `
+                <div class="urge-record-description">
+                    <strong>催办说明：</strong>${escapeHtml(urge.description)}
+                </div>
+            ` : ''}
+            ${urge.handle_result ? `
+                <div class="urge-record-handle">
+                    <div class="urge-record-handle-title">
+                        处理结果 · ${escapeHtml(urge.handler || '-')} · ${escapeHtml(formatDate(urge.handle_time))}
+                    </div>
+                    <div class="urge-record-handle-result">${escapeHtml(urge.handle_result)}</div>
+                </div>
+            ` : ''}
+            ${isPending ? `
+                <div class="urge-record-actions">
+                    <button class="btn-urge btn-urge-sm btn-handle-urge" data-urge-id="${escapeHtml(urge.id)}">
+                        处理催办
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 function renderTimelineItem(log) {
@@ -711,6 +839,8 @@ function renderTimelineItem(log) {
     else if (log.operation_type === '退回') itemClass = 'reject';
     else if (log.operation_type === '封样确认') itemClass = 'confirm';
     else if (log.operation_type === '开样') itemClass = 'open';
+    else if (log.operation_type === '发起催办') itemClass = 'urge';
+    else if (log.operation_type === '处理催办') itemClass = 'urge-handle';
     
     let contentHtml = '';
     if (log.business_result) {
@@ -731,6 +861,12 @@ function renderTimelineItem(log) {
         if (result.priority) fields.push(['优先级', result.priority]);
         if (result.die_version) fields.push(['刀模版本', formatDieVersion(result.die_version)]);
         if (result.opener) fields.push(['开样人员', result.opener]);
+        if (result.urge_type) fields.push(['催办类型', result.urge_type]);
+        if (result.urge_reason) fields.push(['催办原因', result.urge_reason]);
+        if (result.urge_priority) fields.push(['催办优先级', result.urge_priority]);
+        if (result.urge_status) fields.push(['催办状态', result.urge_status]);
+        if (result.handle_result) fields.push(['处理结果', result.handle_result]);
+        if (result.handler) fields.push(['处理人', result.handler]);
         
         if (fields.length > 0) {
             contentHtml = `
@@ -786,6 +922,89 @@ function closeDetailModal() {
     document.getElementById('detail-modal').classList.add('hidden');
 }
 
+let currentUrgeSampleId = null;
+let currentHandleUrgeId = null;
+
+function openUrgeModal(sampleId) {
+    currentUrgeSampleId = sampleId;
+    document.getElementById('urge-form').reset();
+    document.getElementById('urge-sample-id').value = sampleId;
+    document.getElementById('urge-modal').classList.remove('hidden');
+}
+
+function closeUrgeModal() {
+    document.getElementById('urge-modal').classList.add('hidden');
+    currentUrgeSampleId = null;
+}
+
+async function submitUrge(e) {
+    e.preventDefault();
+    
+    const data = {
+        sample_id: currentUrgeSampleId,
+        urge_type: document.getElementById('urge-type').value,
+        urge_reason: document.getElementById('urge-reason').value,
+        priority: document.getElementById('urge-priority').value,
+        description: document.getElementById('urge-description').value,
+        deadline: document.getElementById('urge-deadline').value || null
+    };
+    
+    try {
+        await apiRequest('/urges', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        showToast('催办创建成功', 'success');
+        closeUrgeModal();
+        loadData();
+        
+        if (currentSampleDetail && currentSampleDetail.id === currentUrgeSampleId) {
+            await loadSampleDetail(currentUrgeSampleId);
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+function openUrgeHandleModal(urgeId) {
+    currentHandleUrgeId = urgeId;
+    document.getElementById('urge-handle-form').reset();
+    document.getElementById('urge-handle-id').value = urgeId;
+    document.getElementById('urge-handle-modal').classList.remove('hidden');
+}
+
+function closeUrgeHandleModal() {
+    document.getElementById('urge-handle-modal').classList.add('hidden');
+    currentHandleUrgeId = null;
+}
+
+async function submitUrgeHandle(e) {
+    e.preventDefault();
+    
+    const data = {
+        handle_result: document.getElementById('urge-handle-result').value,
+        status: document.getElementById('urge-handle-status').value
+    };
+    
+    try {
+        const result = await apiRequest(`/urges/${currentHandleUrgeId}/handle`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        showToast('催办处理成功', 'success');
+        closeUrgeHandleModal();
+        loadData();
+        
+        if (currentSampleDetail && result.sample_id && currentSampleDetail.id === result.sample_id) {
+            await loadSampleDetail(result.sample_id);
+        }
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
 function setupEventListeners() {
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -812,6 +1031,8 @@ function setupEventListeners() {
         document.getElementById('filter-priority').value = '';
         document.getElementById('filter-date-from').value = '';
         document.getElementById('filter-date-to').value = '';
+        document.getElementById('filter-risk-type').value = '';
+        document.getElementById('filter-urge-status').value = '';
         loadData();
     });
     
@@ -840,9 +1061,33 @@ function setupEventListeners() {
         }
     });
     
+    document.getElementById('urge-form').addEventListener('submit', submitUrge);
+    
+    document.getElementById('urge-close').addEventListener('click', closeUrgeModal);
+    document.getElementById('urge-cancel').addEventListener('click', closeUrgeModal);
+    
+    document.getElementById('urge-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'urge-modal') {
+            closeUrgeModal();
+        }
+    });
+    
+    document.getElementById('urge-handle-form').addEventListener('submit', submitUrgeHandle);
+    
+    document.getElementById('urge-handle-close').addEventListener('click', closeUrgeHandleModal);
+    document.getElementById('urge-handle-cancel').addEventListener('click', closeUrgeHandleModal);
+    
+    document.getElementById('urge-handle-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'urge-handle-modal') {
+            closeUrgeHandleModal();
+        }
+    });
+    
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeDetailModal();
+            closeUrgeModal();
+            closeUrgeHandleModal();
         }
     });
 }

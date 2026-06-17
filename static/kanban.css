@@ -370,7 +370,7 @@ body {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 20px;
 }
 
@@ -406,6 +406,8 @@ body {
 .stat-card.stat-high-risk::before { background: var(--danger); }
 .stat-card.stat-overdue::before { background: var(--warning); }
 .stat-card.stat-near-deadline::before { background: var(--info); }
+.stat-card.stat-pending-urge::before { background: var(--pink); }
+.stat-card.stat-high-risk-unclosed::before { background: #f97316; }
 
 .stat-icon {
     width: 56px;
@@ -435,6 +437,16 @@ body {
 .stat-near-deadline .stat-icon {
     background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.2) 100%);
     color: var(--info);
+}
+
+.stat-pending-urge .stat-icon {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0.2) 100%);
+    color: var(--pink);
+}
+
+.stat-high-risk-unclosed .stat-icon {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.2) 100%);
+    color: #f97316;
 }
 
 .stat-content {
@@ -629,6 +641,7 @@ body {
 .kanban-card.high-priority::before { background: var(--warning); }
 .kanban-card.urgent-priority::before { background: var(--danger); }
 .kanban-card.normal::before { background: var(--border); }
+.kanban-card.pending-urge::before { background: var(--pink); }
 
 .kanban-card-header {
     display: flex;
@@ -792,6 +805,16 @@ body {
 .risk-flag.near-deadline::before { background: var(--warning); }
 .risk-flag.repeated-modification::before { background: var(--pink); }
 .risk-flag.multiple-test-failure::before { background: var(--purple); }
+
+.risk-flag.urge-pending {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--pink);
+    gap: 6px;
+}
+
+.risk-flag.urge-pending::before {
+    background: var(--pink);
+}
 
 .kanban-card-stats {
     display: flex;
@@ -1195,7 +1218,292 @@ body {
 
 .record-card.test { border-left-color: var(--info); }
 .record-card.modify { border-left-color: var(--pink); }
-.record-card.reject { border-left-color: var(--danger); }
+.record-card.reject {
+    border-left-color: var(--danger);
+}
+
+.urge-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.urge-section-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn-urge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--pink) 0%, #db2777 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-urge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.btn-urge-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.urge-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.urge-badge.pending {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--pink);
+}
+
+.urge-badge.processing {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
+}
+
+.urge-badge.resolved {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.urge-badge.closed {
+    background: rgba(107, 114, 128, 0.1);
+    color: var(--text-secondary);
+}
+
+.urge-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--pink);
+    color: white;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.urge-record-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+}
+
+.urge-record-card:hover {
+    box-shadow: var(--shadow);
+}
+
+.urge-record-card.pending {
+    border-left: 4px solid var(--pink);
+}
+
+.urge-record-card.processing {
+    border-left: 4px solid var(--primary);
+}
+
+.urge-record-card.resolved {
+    border-left: 4px solid var(--success);
+}
+
+.urge-record-card.closed {
+    border-left: 4px solid var(--text-secondary);
+}
+
+.urge-record-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.urge-record-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.urge-record-meta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.urge-record-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.urge-record-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.urge-record-value {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.urge-record-description {
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.urge-record-description strong {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.urge-record-handle {
+    padding: 12px;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.urge-record-handle-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--success);
+    margin-bottom: 6px;
+}
+
+.urge-record-handle-result {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.urge-record-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.urge-modal .modal-content {
+    max-width: 520px;
+}
+
+.urge-modal .form-group {
+    margin-bottom: 16px;
+}
+
+.urge-modal .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.urge-modal .form-group input,
+.urge-modal .form-group select,
+.urge-modal .form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    transition: border-color 0.2s ease;
+}
+
+.urge-modal .form-group input:focus,
+.urge-modal .form-group select:focus,
+.urge-modal .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.urge-modal .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.urge-modal .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.urge-modal .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+.btn-primary-urge {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, var(--pink) 0%, #db2777 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary-urge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
 
 .record-header {
     display: flex;
@@ -1429,4 +1737,268 @@ body {
         width: 90vw;
         padding: 24px;
     }
+}
+
+.urge-modal {
+    width: 500px;
+    max-width: 95vw;
+}
+
+.required {
+    color: var(--danger);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
+.form-actions .btn-primary,
+.form-actions .btn-secondary {
+    width: auto;
+    padding: 10px 24px;
+}
+
+textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    background: var(--bg-secondary);
+    resize: vertical;
+    min-height: 100px;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.urge-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.urge-badge.pending {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--pink);
+}
+
+.urge-badge.processing {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+}
+
+.urge-badge.resolved {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.urge-badge.closed {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+}
+
+.kanban-card-urge-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+}
+
+.urge-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--pink);
+    color: white;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.urge-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.urge-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.urge-section-title::before {
+    content: '';
+    width: 4px;
+    height: 18px;
+    background: var(--pink);
+    border-radius: 2px;
+}
+
+.btn-urge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, var(--pink) 0%, #db2777 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-urge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-urge-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+.urge-record-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--border);
+}
+
+.urge-record-card:last-child {
+    margin-bottom: 0;
+}
+
+.urge-record-card.pending {
+    border-left-color: var(--pink);
+}
+
+.urge-record-card.processing {
+    border-left-color: var(--warning);
+}
+
+.urge-record-card.resolved {
+    border-left-color: var(--success);
+}
+
+.urge-record-card.closed {
+    border-left-color: var(--text-muted);
+}
+
+.urge-record-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.urge-record-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.urge-record-meta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.urge-record-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.urge-record-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.urge-record-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.urge-record-description {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.urge-record-handle {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+}
+
+.urge-record-handle-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.urge-record-handle-result {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.urge-record-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.timeline-type.发起催办 {
+    background: rgba(236, 72, 153, 0.1);
+    color: var(--pink);
+}
+
+.timeline-type.处理催办 {
+    background: rgba(249, 115, 22, 0.1);
+    color: #f97316;
+}
+
+.timeline-item.urge::before {
+    border-color: var(--pink);
+}
+
+.timeline-item.urge-handle::before {
+    border-color: #f97316;
 }

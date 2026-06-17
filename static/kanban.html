@@ -103,6 +103,24 @@
                         <label>创建日期止</label>
                         <input type="date" id="filter-date-to">
                     </div>
+                    <div class="filter-item">
+                        <label>催办状态</label>
+                        <select id="filter-urge-status">
+                            <option value="">全部催办</option>
+                            <option value="pending">有待处理催办</option>
+                            <option value="resolved">已处理催办</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>风险类型</label>
+                        <select id="filter-risk-type">
+                            <option value="">全部风险</option>
+                            <option value="overdue">已超期</option>
+                            <option value="near_deadline">临近截止</option>
+                            <option value="repeated_modification">反复修改</option>
+                            <option value="multiple_test_failure">多次测试未通过</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="filter-actions">
                     <button class="btn-primary" id="btn-apply-filter">
@@ -135,6 +153,32 @@
                         <div class="stat-content">
                             <span class="stat-value" id="stat-total">0</span>
                             <span class="stat-label">任务总数</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-pending-urge">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                <path d="M19 21v-2M5 21v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-pending-urge">0</span>
+                            <span class="stat-label">待处理催办</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-high-risk-unclosed">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M4.93 4.93l14.14 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-high-risk-unclosed">0</span>
+                            <span class="stat-label">高风险未闭环</span>
                         </div>
                     </div>
                     <div class="stat-card stat-high-risk">
@@ -249,6 +293,90 @@
                 <button class="modal-close" id="detail-close">&times;</button>
             </div>
             <div class="detail-body" id="detail-body">
+            </div>
+        </div>
+    </div>
+
+    <div id="urge-modal" class="modal hidden">
+        <div class="modal-content urge-modal">
+            <div class="detail-header">
+                <h2>发起催办</h2>
+                <button class="modal-close" id="urge-close">&times;</button>
+            </div>
+            <div class="detail-body">
+                <form id="urge-form">
+                    <div class="form-group">
+                        <label>催办类型 <span class="required">*</span></label>
+                        <select id="urge-type" required>
+                            <option value="">请选择催办类型</option>
+                            <option value="进度催办">进度催办</option>
+                            <option value="质量催办">质量催办</option>
+                            <option value="交期催办">交期催办</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>催办原因 <span class="required">*</span></label>
+                        <select id="urge-reason" required>
+                            <option value="">请选择催办原因</option>
+                            <option value="临近截止">临近截止</option>
+                            <option value="已超期">已超期</option>
+                            <option value="反复修改">反复修改</option>
+                            <option value="多次测试未通过">多次测试未通过</option>
+                            <option value="客户催促">客户催促</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>优先级</label>
+                        <select id="urge-priority">
+                            <option value="普通">普通</option>
+                            <option value="高">高</option>
+                            <option value="紧急">紧急</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>要求处理时间</label>
+                        <input type="datetime-local" id="urge-deadline">
+                    </div>
+                    <div class="form-group">
+                        <label>详细说明</label>
+                        <textarea id="urge-description" rows="4" placeholder="请输入催办详细说明..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="urge-cancel">取消</button>
+                        <button type="submit" class="btn-primary">确认催办</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="urge-handle-modal" class="modal hidden">
+        <div class="modal-content urge-modal">
+            <div class="detail-header">
+                <h2>处理催办</h2>
+                <button class="modal-close" id="urge-handle-close">&times;</button>
+            </div>
+            <div class="detail-body">
+                <form id="urge-handle-form">
+                    <div class="form-group">
+                        <label>处理状态</label>
+                        <select id="urge-handle-status">
+                            <option value="RESOLVED">已处理</option>
+                            <option value="PROCESSING">处理中</option>
+                            <option value="CLOSED">已关闭</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>处理结果 <span class="required">*</span></label>
+                        <textarea id="urge-handle-result" rows="5" placeholder="请输入处理结果说明..." required></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="urge-handle-cancel">取消</button>
+                        <button type="submit" class="btn-primary">确认处理</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

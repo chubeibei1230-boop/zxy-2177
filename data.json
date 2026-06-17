@@ -497,6 +497,28 @@
       "modification_records": [],
       "reject_records": [],
       "seal_record": null
+    },
+    "dc68636a-2de4-4c8f-bc94-d6268db077ed": {
+      "id": "dc68636a-2de4-4c8f-bc94-d6268db077ed",
+      "project_name": "项目C-电子产品包装盒",
+      "customer_name": "华为技术",
+      "board_spec": "E型瓦楞 400g",
+      "die_number": "DM-2026-TEST-001",
+      "die_version": "V1.0",
+      "test_round": 1,
+      "owner": "赵工",
+      "status": "待开样",
+      "priority": "高",
+      "deadline": null,
+      "created_at": "2026-06-17T18:05:35.836417",
+      "updated_at": "2026-06-17T18:05:35.836417",
+      "created_by": "admin",
+      "notes": "测试操作留痕功能",
+      "open_record": null,
+      "test_records": [],
+      "modification_records": [],
+      "reject_records": [],
+      "seal_record": null
     }
   },
   "index_project_version": {
@@ -511,7 +533,8 @@
     "Bug4Test-1|DM-BUG4-1|V1.0": "645920d0-709f-438c-82a8-f5396e851cc4",
     "Bug4Test-2|DM-BUG4-2|V1.0": "34ae158e-16e4-45b5-b069-648ae2007b34",
     "回归测试|DM-REG|V1.0": "51b8b1d9-47e6-4e32-841a-da0e121a61ad",
-    "<script>alert(\"XSS\")</script>测试项目|DM-TEST-XSS|V1.0": "375ae67f-95a4-4b70-b540-a4ae2cbde7c0"
+    "<script>alert(\"XSS\")</script>测试项目|DM-TEST-XSS|V1.0": "375ae67f-95a4-4b70-b540-a4ae2cbde7c0",
+    "项目C-电子产品包装盒|DM-2026-TEST-001|V1.0": "dc68636a-2de4-4c8f-bc94-d6268db077ed"
   },
   "operation_logs": {
     "0968eaee-e99c-43a0-806a-3b8023c3535b": {
@@ -1254,6 +1277,25 @@
         "owner": "测试员",
         "priority": "普通"
       }
+    },
+    "f70ae1bd-e164-49fe-b800-9cd985c9d323": {
+      "id": "f70ae1bd-e164-49fe-b800-9cd985c9d323",
+      "sample_id": "dc68636a-2de4-4c8f-bc94-d6268db077ed",
+      "project_name": "项目C-电子产品包装盒",
+      "customer_name": "华为技术",
+      "die_number": "DM-2026-TEST-001",
+      "operation_type": "新建",
+      "operator": "admin",
+      "operation_time": "2026-06-17T18:05:35.841193",
+      "previous_status": null,
+      "current_status": "待开样",
+      "notes": "测试操作留痕功能",
+      "business_result": {
+        "die_version": "V1.0",
+        "test_round": 1,
+        "owner": "赵工",
+        "priority": "高"
+      }
     }
   },
   "index_sample_logs": {
@@ -1321,6 +1363,9 @@
     ],
     "375ae67f-95a4-4b70-b540-a4ae2cbde7c0": [
       "f9279bfd-87ad-4282-ae18-f9bf0498d59a"
+    ],
+    "dc68636a-2de4-4c8f-bc94-d6268db077ed": [
+      "f70ae1bd-e164-49fe-b800-9cd985c9d323"
     ]
   }
 }

@@ -194,6 +194,73 @@ class OperationType(str, Enum):
     REJECT = "退回"
     CONFIRM = "封样确认"
     STATUS_CHANGE = "状态调整"
+    URGE = "发起催办"
+    URGE_HANDLE = "处理催办"
+
+
+class UrgeStatus(str, Enum):
+    PENDING = "待处理"
+    PROCESSING = "处理中"
+    RESOLVED = "已处理"
+    CLOSED = "已关闭"
+
+
+class UrgeRecord(BaseModel):
+    id: str
+    sample_id: str
+    project_name: str
+    customer_name: str
+    die_number: str
+    urge_type: str
+    urge_reason: str
+    description: Optional[str] = None
+    urge_by: str
+    urge_time: datetime = Field(default_factory=datetime.now)
+    handler: Optional[str] = None
+    handle_time: Optional[datetime] = None
+    handle_result: Optional[str] = None
+    status: UrgeStatus = UrgeStatus.PENDING
+    priority: str = "普通"
+    deadline: Optional[datetime] = None
+
+
+class UrgeCreate(BaseModel):
+    sample_id: str
+    urge_type: str
+    urge_reason: str
+    description: Optional[str] = None
+    priority: Optional[str] = "普通"
+    deadline: Optional[datetime] = None
+
+
+class UrgeHandle(BaseModel):
+    handle_result: str
+    handler: Optional[str] = None
+    new_status: Optional[UrgeStatus] = None
+
+
+class UrgeQueryParams(BaseModel):
+    sample_id: Optional[str] = None
+    status: Optional[UrgeStatus] = None
+    urge_by: Optional[str] = None
+    handler: Optional[str] = None
+    urge_type: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    project_name: Optional[str] = None
+    customer_name: Optional[str] = None
+    die_number: Optional[str] = None
+    owner: Optional[str] = None
+
+
+class UrgeSummary(BaseModel):
+    total_urges: int
+    pending_count: int
+    processing_count: int
+    resolved_count: int
+    closed_count: int
+    high_risk_unclosed_count: int
+    urge_type_distribution: Dict[str, int]
 
 
 class OperationLog(BaseModel):
@@ -224,6 +291,7 @@ class OperationLogQuery(BaseModel):
 
 class DieSampleDetail(DieSample):
     timeline: List[OperationLog] = []
+    urge_records: List[UrgeRecord] = []
 
 
 class KanbanRiskFlag(str, Enum):
@@ -254,6 +322,9 @@ class KanbanSampleItem(BaseModel):
     days_remaining: Optional[int] = None
     modification_count: int = 0
     test_failure_count: int = 0
+    pending_urge_count: int = 0
+    total_urge_count: int = 0
+    latest_urge_time: Optional[datetime] = None
 
 
 class StatusSummaryItem(BaseModel):
@@ -294,6 +365,8 @@ class KanbanSummary(BaseModel):
     high_risk_count: int
     overdue_count: int
     near_deadline_count: int
+    pending_urge_count: int
+    high_risk_unclosed_urge_count: int
 
 
 class KanbanQueryParams(BaseModel):
