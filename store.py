@@ -1,4 +1,8 @@
 import uuid
+import json
+import os
+import threading
+import tempfile
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
@@ -22,11 +26,49 @@ HIGH_REJECTION_THRESHOLD = 3
 
 
 class DieSampleStore:
-    def __init__(self):
+    def __init__(self, data_file: str = "data.json"):
+        self.data_file = data_file
+        self._lock = threading.Lock()
         self.samples: Dict[str, DieSample] = {}
         self._index_project_version: Dict[str, str] = {}
         self.operation_logs: Dict[str, OperationLog] = {}
         self._index_sample_logs: Dict[str, List[str]] = defaultdict(list)
+        self._load_from_disk()
+
+    def _load_from_disk(self) -> None:
+        if not os.path.exists(self.data_file):
+            return
+        try:
+            with open(self.data_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for sid, s_data in data.get("samples", {}).items():
+                self.samples[sid] = DieSample(**s_data)
+            self._index_project_version = data.get("index_project_version", {})
+            for lid, l_data in data.get("operation_logs", {}).items():
+                self.operation_logs[lid] = OperationLog(**l_data)
+            for sid, lids in data.get("index_sample_logs", {}).items():
+                self._index_sample_logs[sid] = lids
+        except Exception as e:
+            print(f"[WARN] 加载数据文件失败: {e}，将使用空数据初始化")
+
+    def _save_to_disk(self) -> None:
+        data = {
+            "samples": {sid: s.model_dump(mode="json") for sid, s in self.samples.items()},
+            "index_project_version": self._index_project_version,
+            "operation_logs": {lid: l.model_dump(mode="json") for lid, l in self.operation_logs.items()},
+            "index_sample_logs": dict(self._index_sample_logs),
+        }
+        dir_name = os.path.dirname(os.path.abspath(self.data_file)) or "."
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=dir_name, delete=False, suffix=".tmp"
+        ) as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            tmp_path = f.name
+        os.replace(tmp_path, self.data_file)
+
+    def _save(self) -> None:
+        with self._lock:
+            self._save_to_disk()
 
     def _add_operation_log(
         self,
@@ -88,6 +130,7 @@ class DieSampleStore:
                 "priority": data.priority,
             },
         )
+        self._save()
         return sample
 
     def get_sample(self, sample_id: str) -> Optional[DieSample]:
@@ -148,6 +191,7 @@ class DieSampleStore:
                 "opener": req.opener,
             },
         )
+        self._save()
         return s
 
     def submit_test_result(self, sample_id: str, req: TestResultSubmit) -> DieSample:
@@ -188,6 +232,7 @@ class DieSampleStore:
                 "test_record_id": record.id,
             },
         )
+        self._save()
         return s
 
     def submit_modification(self, sample_id: str, req: ModificationSubmit) -> DieSample:
@@ -222,6 +267,7 @@ class DieSampleStore:
                 "modification_record_id": record.id,
             },
         )
+        self._save()
         return s
 
     def confirm_seal(self, sample_id: str, req: ConfirmRequest) -> DieSample:
@@ -278,6 +324,7 @@ class DieSampleStore:
                 "sealer": req.confirmer,
             },
         )
+        self._save()
         return s
 
     def reject_sample(self, sample_id: str, req: RejectRequest) -> DieSample:
@@ -308,6 +355,7 @@ class DieSampleStore:
                 "reject_record_id": record.id,
             },
         )
+        self._save()
         return s
 
     ALLOWED_STATUS_TRANSITIONS: Dict[SampleStatus, List[SampleStatus]] = {
@@ -351,6 +399,7 @@ class DieSampleStore:
                 "to_status": target_status.value,
             },
         )
+        self._save()
         return s
 
     def detect_anomalies(self) -> List[AnomalyReport]:

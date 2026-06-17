@@ -1,0 +1,287 @@
+{
+  "samples": {
+    "fee9284c-59cf-4b5c-b01e-f2d2737323ac": {
+      "id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "board_spec": "E型瓦楞 350g",
+      "die_number": "DM-2026-001",
+      "die_version": "V1.0",
+      "test_round": 2,
+      "owner": "张工",
+      "status": "已封样",
+      "priority": "高",
+      "deadline": null,
+      "created_at": "2026-06-17T11:46:49.245148",
+      "updated_at": "2026-06-17T11:47:08.622990",
+      "created_by": "admin",
+      "notes": "首批样品，加急处理",
+      "open_record": {
+        "opener": "张工",
+        "open_date": "2026-06-17T11:46:57.519937",
+        "notes": "开始开样"
+      },
+      "test_records": [
+        {
+          "id": "5ce484de-925c-47e4-8617-25a0ddd0f19e",
+          "round": 1,
+          "folding_result": "折合平整，无明显反弹",
+          "indentation_result": "压痕清晰，深度合适",
+          "cracking_description": "边角处轻微开裂",
+          "tester": "质检小王",
+          "test_date": "2026-06-17T11:46:59.634893",
+          "is_passed": false,
+          "notes": "需要调整刀模角度"
+        },
+        {
+          "id": "09007275-32f8-49d4-9347-9ecb7684fd7f",
+          "round": 2,
+          "folding_result": "折合正常，反弹度符合标准",
+          "indentation_result": "压痕深度标准",
+          "cracking_description": "",
+          "tester": "质检小王",
+          "test_date": "2026-06-17T11:47:03.863806",
+          "is_passed": true,
+          "notes": null
+        }
+      ],
+      "modification_records": [
+        {
+          "id": "a85821d5-c733-48bc-b801-d9284e332fc7",
+          "round": 1,
+          "modification_action": "调整边角刀模角度 0.5度，加厚保护线",
+          "modifier": "张工",
+          "modify_date": "2026-06-17T11:47:01.713383",
+          "reason": "测试显示边角开裂",
+          "notes": "按测试报告调整"
+        }
+      ],
+      "reject_records": [],
+      "seal_record": {
+        "sealer": "总工办",
+        "seal_date": "2026-06-17T11:47:08.622990",
+        "version": "V1.0",
+        "notes": "通过客户确认，封样存档"
+      }
+    },
+    "c6f8d159-9358-414e-8b4c-53e43e330ccb": {
+      "id": "c6f8d159-9358-414e-8b4c-53e43e330ccb",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "board_spec": "E型瓦楞 350g",
+      "die_number": "DM-2026-001",
+      "die_version": "V1.1",
+      "test_round": 1,
+      "owner": "李工",
+      "status": "待开样",
+      "priority": "普通",
+      "deadline": null,
+      "created_at": "2026-06-17T11:46:51.335159",
+      "updated_at": "2026-06-17T11:46:51.335159",
+      "created_by": "admin",
+      "notes": null,
+      "open_record": null,
+      "test_records": [],
+      "modification_records": [],
+      "reject_records": [],
+      "seal_record": null
+    },
+    "5197573d-9634-41ac-93a8-423f3db3de34": {
+      "id": "5197573d-9634-41ac-93a8-423f3db3de34",
+      "project_name": "项目B-快递盒",
+      "customer_name": "京东物流",
+      "board_spec": "B型瓦楞 300g",
+      "die_number": "DM-2026-002",
+      "die_version": "V1.0",
+      "test_round": 1,
+      "owner": "王工",
+      "status": "待开样",
+      "priority": "紧急",
+      "deadline": null,
+      "created_at": "2026-06-17T11:46:53.399111",
+      "updated_at": "2026-06-17T11:46:53.399111",
+      "created_by": "admin",
+      "notes": null,
+      "open_record": null,
+      "test_records": [],
+      "modification_records": [],
+      "reject_records": [],
+      "seal_record": null
+    }
+  },
+  "index_project_version": {
+    "项目A-礼盒包装|DM-2026-001|V1.0": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+    "项目A-礼盒包装|DM-2026-001|V1.1": "c6f8d159-9358-414e-8b4c-53e43e330ccb",
+    "项目B-快递盒|DM-2026-002|V1.0": "5197573d-9634-41ac-93a8-423f3db3de34"
+  },
+  "operation_logs": {
+    "0968eaee-e99c-43a0-806a-3b8023c3535b": {
+      "id": "0968eaee-e99c-43a0-806a-3b8023c3535b",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "新建",
+      "operator": "admin",
+      "operation_time": "2026-06-17T11:46:49.247146",
+      "previous_status": null,
+      "current_status": "待开样",
+      "notes": "首批样品，加急处理",
+      "business_result": {
+        "die_version": "V1.0",
+        "test_round": 1,
+        "owner": "张工",
+        "priority": "高"
+      }
+    },
+    "427a610f-f643-449a-bf27-28016354ad3e": {
+      "id": "427a610f-f643-449a-bf27-28016354ad3e",
+      "sample_id": "c6f8d159-9358-414e-8b4c-53e43e330ccb",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "新建",
+      "operator": "admin",
+      "operation_time": "2026-06-17T11:46:51.335159",
+      "previous_status": null,
+      "current_status": "待开样",
+      "notes": null,
+      "business_result": {
+        "die_version": "V1.1",
+        "test_round": 1,
+        "owner": "李工",
+        "priority": "普通"
+      }
+    },
+    "5cc742d1-d96c-4795-b6fc-69e641854276": {
+      "id": "5cc742d1-d96c-4795-b6fc-69e641854276",
+      "sample_id": "5197573d-9634-41ac-93a8-423f3db3de34",
+      "project_name": "项目B-快递盒",
+      "customer_name": "京东物流",
+      "die_number": "DM-2026-002",
+      "operation_type": "新建",
+      "operator": "admin",
+      "operation_time": "2026-06-17T11:46:53.399111",
+      "previous_status": null,
+      "current_status": "待开样",
+      "notes": null,
+      "business_result": {
+        "die_version": "V1.0",
+        "test_round": 1,
+        "owner": "王工",
+        "priority": "紧急"
+      }
+    },
+    "b277ee03-f7b8-40cf-a8f3-cba4480cdd29": {
+      "id": "b277ee03-f7b8-40cf-a8f3-cba4480cdd29",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "开样",
+      "operator": "张工",
+      "operation_time": "2026-06-17T11:46:57.519937",
+      "previous_status": "待开样",
+      "current_status": "打样中",
+      "notes": "开始开样",
+      "business_result": {
+        "opener": "张工"
+      }
+    },
+    "69a9ab0e-8a57-4e9c-990c-be75741c3168": {
+      "id": "69a9ab0e-8a57-4e9c-990c-be75741c3168",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "测试提交",
+      "operator": "质检小王",
+      "operation_time": "2026-06-17T11:46:59.634893",
+      "previous_status": "打样中",
+      "current_status": "修改中",
+      "notes": "需要调整刀模角度",
+      "business_result": {
+        "test_round": 1,
+        "is_passed": false,
+        "folding_result": "折合平整，无明显反弹",
+        "indentation_result": "压痕清晰，深度合适",
+        "cracking_description": "边角处轻微开裂",
+        "test_record_id": "5ce484de-925c-47e4-8617-25a0ddd0f19e"
+      }
+    },
+    "bb71a837-a132-41ef-80fc-628cf8c0fc0d": {
+      "id": "bb71a837-a132-41ef-80fc-628cf8c0fc0d",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "修改",
+      "operator": "张工",
+      "operation_time": "2026-06-17T11:47:01.713383",
+      "previous_status": "修改中",
+      "current_status": "修改中",
+      "notes": "按测试报告调整",
+      "business_result": {
+        "modification_round": 1,
+        "modification_action": "调整边角刀模角度 0.5度，加厚保护线",
+        "reason": "测试显示边角开裂",
+        "modification_record_id": "a85821d5-c733-48bc-b801-d9284e332fc7"
+      }
+    },
+    "60340d6c-e276-4af5-b16a-46d9439b6cf6": {
+      "id": "60340d6c-e276-4af5-b16a-46d9439b6cf6",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "测试提交",
+      "operator": "质检小王",
+      "operation_time": "2026-06-17T11:47:03.863806",
+      "previous_status": "修改中",
+      "current_status": "待确认",
+      "notes": null,
+      "business_result": {
+        "test_round": 2,
+        "is_passed": true,
+        "folding_result": "折合正常，反弹度符合标准",
+        "indentation_result": "压痕深度标准",
+        "cracking_description": "",
+        "test_record_id": "09007275-32f8-49d4-9347-9ecb7684fd7f"
+      }
+    },
+    "dfbf69c9-1ad7-40c0-9c75-59e674bee6ef": {
+      "id": "dfbf69c9-1ad7-40c0-9c75-59e674bee6ef",
+      "sample_id": "fee9284c-59cf-4b5c-b01e-f2d2737323ac",
+      "project_name": "项目A-礼盒包装",
+      "customer_name": "顺丰集团",
+      "die_number": "DM-2026-001",
+      "operation_type": "封样确认",
+      "operator": "总工办",
+      "operation_time": "2026-06-17T11:47:08.622990",
+      "previous_status": "待确认",
+      "current_status": "已封样",
+      "notes": "通过客户确认，封样存档",
+      "business_result": {
+        "seal_version": "V1.0",
+        "latest_test_passed": true,
+        "sealer": "总工办"
+      }
+    }
+  },
+  "index_sample_logs": {
+    "fee9284c-59cf-4b5c-b01e-f2d2737323ac": [
+      "0968eaee-e99c-43a0-806a-3b8023c3535b",
+      "b277ee03-f7b8-40cf-a8f3-cba4480cdd29",
+      "69a9ab0e-8a57-4e9c-990c-be75741c3168",
+      "bb71a837-a132-41ef-80fc-628cf8c0fc0d",
+      "60340d6c-e276-4af5-b16a-46d9439b6cf6",
+      "dfbf69c9-1ad7-40c0-9c75-59e674bee6ef"
+    ],
+    "c6f8d159-9358-414e-8b4c-53e43e330ccb": [
+      "427a610f-f643-449a-bf27-28016354ad3e"
+    ],
+    "5197573d-9634-41ac-93a8-423f3db3de34": [
+      "5cc742d1-d96c-4795-b6fc-69e641854276"
+    ]
+  }
+}

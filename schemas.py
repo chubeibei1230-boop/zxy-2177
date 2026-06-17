@@ -220,3 +220,7 @@ class OperationLogQuery(BaseModel):
     operation_type: Optional[OperationType] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+
+
+class DieSampleDetail(DieSample):
+    timeline: List[OperationLog] = []
