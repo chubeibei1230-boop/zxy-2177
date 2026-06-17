@@ -11,6 +11,7 @@ from schemas import (
     RejectRecord, RejectRequest,
     SealRecord, ConfirmRequest,
     AnomalyReport, RejectReasonDistribution, SpecRiskItem,
+    OperationLog, OperationType, OperationLogQuery,
 )
 
 
@@ -24,6 +25,37 @@ class DieSampleStore:
     def __init__(self):
         self.samples: Dict[str, DieSample] = {}
         self._index_project_version: Dict[str, str] = {}
+        self.operation_logs: Dict[str, OperationLog] = {}
+        self._index_sample_logs: Dict[str, List[str]] = defaultdict(list)
+
+    def _add_operation_log(
+        self,
+        sample: DieSample,
+        operation_type: OperationType,
+        operator: str,
+        previous_status: Optional[SampleStatus],
+        current_status: SampleStatus,
+        notes: Optional[str] = None,
+        business_result: Optional[Dict] = None,
+    ) -> OperationLog:
+        log_id = str(uuid.uuid4())
+        log = OperationLog(
+            id=log_id,
+            sample_id=sample.id,
+            project_name=sample.project_name,
+            customer_name=sample.customer_name,
+            die_number=sample.die_number,
+            operation_type=operation_type,
+            operator=operator,
+            operation_time=datetime.now(),
+            previous_status=previous_status,
+            current_status=current_status,
+            notes=notes,
+            business_result=business_result,
+        )
+        self.operation_logs[log_id] = log
+        self._index_sample_logs[sample.id].append(log_id)
+        return log
 
     def _make_key(self, project_name: str, die_number: str, die_version: str) -> str:
         return f"{project_name}|{die_number}|{die_version}"
@@ -42,6 +74,20 @@ class DieSampleStore:
         )
         self.samples[sample_id] = sample
         self._index_project_version[key] = sample_id
+        self._add_operation_log(
+            sample=sample,
+            operation_type=OperationType.CREATE,
+            operator=created_by,
+            previous_status=None,
+            current_status=SampleStatus.PENDING_OPEN,
+            notes=data.notes,
+            business_result={
+                "die_version": data.die_version,
+                "test_round": data.test_round,
+                "owner": data.owner,
+                "priority": data.priority,
+            },
+        )
         return sample
 
     def get_sample(self, sample_id: str) -> Optional[DieSample]:
@@ -83,6 +129,7 @@ class DieSampleStore:
     def open_sample(self, sample_id: str, req: SampleOpenRequest) -> DieSample:
         s = self._require(sample_id)
         self._check_status(s, [SampleStatus.PENDING_OPEN], "开样")
+        previous_status = s.status
         s.open_record = SampleOpenRecord(
             opener=req.opener,
             open_date=datetime.now(),
@@ -90,11 +137,23 @@ class DieSampleStore:
         )
         s.status = SampleStatus.SAMPLING
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.OPEN,
+            operator=req.opener,
+            previous_status=previous_status,
+            current_status=SampleStatus.SAMPLING,
+            notes=req.notes,
+            business_result={
+                "opener": req.opener,
+            },
+        )
         return s
 
     def submit_test_result(self, sample_id: str, req: TestResultSubmit) -> DieSample:
         s = self._require(sample_id)
         self._check_status(s, [SampleStatus.SAMPLING, SampleStatus.PENDING_TEST, SampleStatus.MODIFYING], "提交测试")
+        previous_status = s.status
         record = TestResultRecord(
             id=str(uuid.uuid4()),
             round=req.round,
@@ -113,6 +172,22 @@ class DieSampleStore:
         else:
             s.status = SampleStatus.MODIFYING
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.TEST_SUBMIT,
+            operator=req.tester,
+            previous_status=previous_status,
+            current_status=s.status,
+            notes=req.notes,
+            business_result={
+                "test_round": req.round,
+                "is_passed": req.is_passed,
+                "folding_result": req.folding_result,
+                "indentation_result": req.indentation_result,
+                "cracking_description": req.cracking_description,
+                "test_record_id": record.id,
+            },
+        )
         return s
 
     def submit_modification(self, sample_id: str, req: ModificationSubmit) -> DieSample:
@@ -120,6 +195,7 @@ class DieSampleStore:
         self._check_status(
             s, [SampleStatus.PENDING_CONFIRM, SampleStatus.MODIFYING, SampleStatus.SAMPLING], "提交修改"
         )
+        previous_status = s.status
         record = ModificationRecord(
             id=str(uuid.uuid4()),
             round=req.round,
@@ -132,6 +208,20 @@ class DieSampleStore:
         s.modification_records.append(record)
         s.status = SampleStatus.MODIFYING
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.MODIFY,
+            operator=req.modifier,
+            previous_status=previous_status,
+            current_status=SampleStatus.MODIFYING,
+            notes=req.notes,
+            business_result={
+                "modification_round": req.round,
+                "modification_action": req.modification_action,
+                "reason": req.reason,
+                "modification_record_id": record.id,
+            },
+        )
         return s
 
     def confirm_seal(self, sample_id: str, req: ConfirmRequest) -> DieSample:
@@ -166,6 +256,7 @@ class DieSampleStore:
             s.die_version = req.version
             self._index_project_version[key_new] = s.id
 
+        previous_status = s.status
         s.seal_record = SealRecord(
             sealer=req.confirmer,
             seal_date=datetime.now(),
@@ -174,11 +265,25 @@ class DieSampleStore:
         )
         s.status = SampleStatus.SEALED
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.CONFIRM,
+            operator=req.confirmer,
+            previous_status=previous_status,
+            current_status=SampleStatus.SEALED,
+            notes=req.notes,
+            business_result={
+                "seal_version": req.version,
+                "latest_test_passed": latest_test.is_passed,
+                "sealer": req.confirmer,
+            },
+        )
         return s
 
     def reject_sample(self, sample_id: str, req: RejectRequest) -> DieSample:
         s = self._require(sample_id)
         self._check_status(s, [SampleStatus.PENDING_CONFIRM], "退回")
+        previous_status = s.status
         record = RejectRecord(
             id=str(uuid.uuid4()),
             round=req.round,
@@ -190,6 +295,19 @@ class DieSampleStore:
         s.reject_records.append(record)
         s.status = SampleStatus.MODIFYING
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.REJECT,
+            operator=req.rejecter,
+            previous_status=previous_status,
+            current_status=SampleStatus.MODIFYING,
+            notes=req.description,
+            business_result={
+                "reject_round": req.round,
+                "reject_reason": req.reason,
+                "reject_record_id": record.id,
+            },
+        )
         return s
 
     ALLOWED_STATUS_TRANSITIONS: Dict[SampleStatus, List[SampleStatus]] = {
@@ -202,7 +320,7 @@ class DieSampleStore:
         SampleStatus.CANCELLED: [],
     }
 
-    def change_status(self, sample_id: str, target_status: SampleStatus, operator: str) -> DieSample:
+    def change_status(self, sample_id: str, target_status: SampleStatus, operator: str, notes: Optional[str] = None) -> DieSample:
         s = self._require(sample_id)
         if target_status == SampleStatus.SEALED:
             raise ValueError("已封样状态仅可通过封样确认接口设置，禁止直接切换")
@@ -214,12 +332,25 @@ class DieSampleStore:
         if target_status not in allowed:
             allowed_str = "、".join(x.value for x in allowed) if allowed else "无"
             raise ValueError(f"当前状态 {s.status.value} 不允许切换为 {target_status.value}，允许的目标状态: [{allowed_str}]")
+        previous_status = s.status
         if target_status == SampleStatus.CANCELLED:
             key = self._make_key(s.project_name, s.die_number, s.die_version)
             if key in self._index_project_version:
                 del self._index_project_version[key]
         s.status = target_status
         s.updated_at = datetime.now()
+        self._add_operation_log(
+            sample=s,
+            operation_type=OperationType.STATUS_CHANGE,
+            operator=operator,
+            previous_status=previous_status,
+            current_status=target_status,
+            notes=notes,
+            business_result={
+                "from_status": previous_status.value if previous_status else None,
+                "to_status": target_status.value,
+            },
+        )
         return s
 
     def detect_anomalies(self) -> List[AnomalyReport]:
@@ -410,3 +541,43 @@ class DieSampleStore:
             if x.project_name == s.project_name and x.die_number == s.die_number:
                 others.append(x)
         return others
+
+    def query_operation_logs(
+        self,
+        project_name: Optional[str] = None,
+        die_number: Optional[str] = None,
+        customer_name: Optional[str] = None,
+        status: Optional[SampleStatus] = None,
+        operator: Optional[str] = None,
+        operation_type: Optional[OperationType] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> List[OperationLog]:
+        results = []
+        for log in self.operation_logs.values():
+            if project_name and project_name not in log.project_name:
+                continue
+            if die_number and die_number not in log.die_number:
+                continue
+            if customer_name and customer_name not in log.customer_name:
+                continue
+            if status and log.current_status != status:
+                continue
+            if operator and operator not in log.operator:
+                continue
+            if operation_type and log.operation_type != operation_type:
+                continue
+            if date_from and log.operation_time < date_from:
+                continue
+            if date_to and log.operation_time > date_to:
+                continue
+            results.append(log)
+        results.sort(key=lambda x: x.operation_time, reverse=True)
+        return results
+
+    def get_sample_timeline(self, sample_id: str) -> List[OperationLog]:
+        self._require(sample_id)
+        log_ids = self._index_sample_logs.get(sample_id, [])
+        logs = [self.operation_logs[lid] for lid in log_ids if lid in self.operation_logs]
+        logs.sort(key=lambda x: x.operation_time)
+        return logs

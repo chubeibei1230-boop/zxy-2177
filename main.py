@@ -10,6 +10,7 @@ from schemas import (
     SampleOpenRequest, TestResultSubmit, ModificationSubmit,
     ConfirmRequest, RejectRequest, StatusChangeRequest,
     Token, User, AnomalyReport, RejectReasonDistribution, SpecRiskItem,
+    OperationLog, OperationType,
 )
 from auth import (
     authenticate_user, FAKE_USERS_DB, create_access_token,
@@ -175,7 +176,7 @@ async def change_status(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return store.change_status(sample_id, req.target_status, req.operator)
+        return store.change_status(sample_id, req.target_status, req.operator, req.notes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -198,6 +199,41 @@ async def get_pending_confirm_list(current_user: User = Depends(get_current_user
 @app.get("/api/reports/spec-risk", response_model=List[SpecRiskItem], tags=["统计报表"])
 async def get_spec_risk_ranking(current_user: User = Depends(get_current_user)):
     return store.get_spec_risk_ranking()
+
+
+@app.get("/api/operation-logs", response_model=List[OperationLog], tags=["操作留痕"])
+async def query_operation_logs(
+    project_name: Optional[str] = Query(None, description="项目名称（模糊匹配）"),
+    die_number: Optional[str] = Query(None, description="刀模编号（模糊匹配）"),
+    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
+    status: Optional[SampleStatus] = Query(None, description="操作后状态"),
+    operator: Optional[str] = Query(None, description="操作人（模糊匹配）"),
+    operation_type: Optional[OperationType] = Query(None, description="操作类型"),
+    date_from: Optional[datetime] = Query(None, description="操作时间起"),
+    date_to: Optional[datetime] = Query(None, description="操作时间止"),
+    current_user: User = Depends(get_current_user),
+):
+    return store.query_operation_logs(
+        project_name=project_name,
+        die_number=die_number,
+        customer_name=customer_name,
+        status=status,
+        operator=operator,
+        operation_type=operation_type,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@app.get("/api/samples/{sample_id}/timeline", response_model=List[OperationLog], tags=["操作留痕"])
+async def get_sample_timeline(
+    sample_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return store.get_sample_timeline(sample_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 if __name__ == "__main__":

@@ -184,3 +184,39 @@ class SpecRiskItem(BaseModel):
     risk_score: float
     risk_level: str
     related_sample_ids: List[str]
+
+
+class OperationType(str, Enum):
+    CREATE = "新建"
+    OPEN = "开样"
+    TEST_SUBMIT = "测试提交"
+    MODIFY = "修改"
+    REJECT = "退回"
+    CONFIRM = "封样确认"
+    STATUS_CHANGE = "状态调整"
+
+
+class OperationLog(BaseModel):
+    id: str
+    sample_id: str
+    project_name: str
+    customer_name: str
+    die_number: str
+    operation_type: OperationType
+    operator: str
+    operation_time: datetime = Field(default_factory=datetime.now)
+    previous_status: Optional[SampleStatus] = None
+    current_status: SampleStatus
+    notes: Optional[str] = None
+    business_result: Optional[Dict[str, Any]] = None
+
+
+class OperationLogQuery(BaseModel):
+    project_name: Optional[str] = None
+    die_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    status: Optional[SampleStatus] = None
+    operator: Optional[str] = None
+    operation_type: Optional[OperationType] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
