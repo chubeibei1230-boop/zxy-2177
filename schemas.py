@@ -224,3 +224,84 @@ class OperationLogQuery(BaseModel):
 
 class DieSampleDetail(DieSample):
     timeline: List[OperationLog] = []
+
+
+class KanbanRiskFlag(str, Enum):
+    NONE = "正常"
+    NEAR_DEADLINE = "临近截止"
+    OVERDUE = "已超期"
+    REPEATED_MODIFICATION = "反复修改"
+    MULTIPLE_TEST_FAILURE = "多次测试未通过"
+
+
+class KanbanSampleItem(BaseModel):
+    id: str
+    project_name: str
+    customer_name: str
+    board_spec: str
+    die_number: str
+    die_version: str
+    test_round: int
+    owner: str
+    status: SampleStatus
+    priority: str
+    deadline: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: str
+    notes: Optional[str] = None
+    risk_flags: List[KanbanRiskFlag] = []
+    days_remaining: Optional[int] = None
+    modification_count: int = 0
+    test_failure_count: int = 0
+
+
+class StatusSummaryItem(BaseModel):
+    status: SampleStatus
+    count: int
+    percentage: float
+    sample_ids: List[str]
+
+
+class CustomerSummaryItem(BaseModel):
+    customer_name: str
+    total: int
+    status_breakdown: Dict[str, int]
+    overdue_count: int
+
+
+class BoardSpecSummaryItem(BaseModel):
+    board_spec: str
+    total: int
+    cracking_count: int
+    reject_count: int
+    risk_level: str
+
+
+class OwnerSummaryItem(BaseModel):
+    owner: str
+    total: int
+    status_breakdown: Dict[str, int]
+    overdue_count: int
+
+
+class KanbanSummary(BaseModel):
+    total_samples: int
+    status_summary: List[StatusSummaryItem]
+    customer_summary: List[CustomerSummaryItem]
+    board_spec_summary: List[BoardSpecSummaryItem]
+    owner_summary: List[OwnerSummaryItem]
+    high_risk_count: int
+    overdue_count: int
+    near_deadline_count: int
+
+
+class KanbanQueryParams(BaseModel):
+    customer_name: Optional[str] = None
+    project_name: Optional[str] = None
+    die_number: Optional[str] = None
+    status: Optional[SampleStatus] = None
+    owner: Optional[str] = None
+    priority: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None

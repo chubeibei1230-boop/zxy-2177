@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打样任务看板 - 刀模打样管理系统</title>
+    <link rel="stylesheet" href="/static/kanban.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="login-modal" class="modal">
+        <div class="modal-content login-modal">
+            <h2 class="login-title">刀模打样管理系统</h2>
+            <p class="login-subtitle">打样任务看板</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="username" value="admin" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="password" value="admin123" required>
+                </div>
+                <button type="submit" class="btn-primary">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app" class="app-container hidden">
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect x="2" y="2" width="28" height="28" rx="4" fill="#2563eb"/>
+                        <path d="M8 16H24M16 8V24" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="16" cy="16" r="4" fill="#fbbf24"/>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>打样任务看板</h1>
+                    <p>刀模打样全流程可视化管理</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span class="user-avatar" id="user-avatar">A</span>
+                    <div class="user-details">
+                        <span class="user-name" id="user-name">Admin</span>
+                        <span class="user-role" id="user-role">管理员</span>
+                    </div>
+                </div>
+                <button class="btn-logout" id="logout-btn">退出</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="filter-section">
+                <div class="filter-grid">
+                    <div class="filter-item">
+                        <label>客户名称</label>
+                        <input type="text" id="filter-customer" placeholder="输入客户名称">
+                    </div>
+                    <div class="filter-item">
+                        <label>项目名称</label>
+                        <input type="text" id="filter-project" placeholder="输入项目名称">
+                    </div>
+                    <div class="filter-item">
+                        <label>刀模编号</label>
+                        <input type="text" id="filter-die" placeholder="输入刀模编号">
+                    </div>
+                    <div class="filter-item">
+                        <label>状态</label>
+                        <select id="filter-status">
+                            <option value="">全部状态</option>
+                            <option value="待开样">待开样</option>
+                            <option value="打样中">打样中</option>
+                            <option value="待测试">待测试</option>
+                            <option value="待确认">待确认</option>
+                            <option value="修改中">修改中</option>
+                            <option value="已封样">已封样</option>
+                            <option value="已取消">已取消</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>责任人</label>
+                        <input type="text" id="filter-owner" placeholder="输入责任人">
+                    </div>
+                    <div class="filter-item">
+                        <label>优先级</label>
+                        <select id="filter-priority">
+                            <option value="">全部优先级</option>
+                            <option value="紧急">紧急</option>
+                            <option value="高">高</option>
+                            <option value="普通">普通</option>
+                            <option value="低">低</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>创建日期起</label>
+                        <input type="date" id="filter-date-from">
+                    </div>
+                    <div class="filter-item">
+                        <label>创建日期止</label>
+                        <input type="date" id="filter-date-to">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-primary" id="btn-apply-filter">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 5H13M5 8H11M7 11H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        筛选
+                    </button>
+                    <button class="btn-secondary" id="btn-reset-filter">重置</button>
+                    <button class="btn-refresh" id="btn-refresh">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.333 8A5.333 5.333 0 1 1 8 2.667" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M13.333 2.667V8H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        刷新
+                    </button>
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card stat-total">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
+                                <path d="M9 21V9" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-total">0</span>
+                            <span class="stat-label">任务总数</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-high-risk">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-high-risk">0</span>
+                            <span class="stat-label">高风险任务</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-overdue">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-overdue">0</span>
+                            <span class="stat-label">已超期</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-near-deadline">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="stat-near-deadline">0</span>
+                            <span class="stat-label">临近截止</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="status-summary-section">
+                <h3 class="section-title">状态分布</h3>
+                <div class="status-bar-container" id="status-bar-container">
+                </div>
+            </section>
+
+            <section class="kanban-section">
+                <div class="kanban-board" id="kanban-board">
+                </div>
+            </section>
+
+            <section class="summary-section">
+                <div class="summary-tabs">
+                    <button class="tab-btn active" data-tab="customer">按客户统计</button>
+                    <button class="tab-btn" data-tab="spec">按纸板规格统计</button>
+                    <button class="tab-btn" data-tab="owner">按责任人统计</button>
+                </div>
+                <div class="summary-content">
+                    <div class="tab-panel active" id="tab-customer">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>客户名称</th>
+                                    <th>任务总数</th>
+                                    <th>状态分布</th>
+                                    <th>超期数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customer-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="tab-panel" id="tab-spec">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>纸板规格</th>
+                                    <th>任务总数</th>
+                                    <th>开裂数</th>
+                                    <th>退回数</th>
+                                    <th>风险等级</th>
+                                </tr>
+                            </thead>
+                            <tbody id="spec-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="tab-panel" id="tab-owner">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>责任人</th>
+                                    <th>任务总数</th>
+                                    <th>状态分布</th>
+                                    <th>超期数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="owner-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-content detail-modal">
+            <div class="detail-header">
+                <h2 id="detail-title">任务详情</h2>
+                <button class="modal-close" id="detail-close">&times;</button>
+            </div>
+            <div class="detail-body" id="detail-body">
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/kanban.js"></script>
+</body>
+</html>

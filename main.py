@@ -4,13 +4,16 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+import os
 
 from schemas import (
     DieSample, DieSampleCreate, DieSampleDetail, SampleStatus,
     SampleOpenRequest, TestResultSubmit, ModificationSubmit,
     ConfirmRequest, RejectRequest, StatusChangeRequest,
     Token, User, AnomalyReport, RejectReasonDistribution, SpecRiskItem,
-    OperationLog, OperationType,
+    OperationLog, OperationType, KanbanSampleItem, KanbanSummary,
 )
 from auth import (
     authenticate_user, FAKE_USERS_DB, create_access_token,
@@ -32,6 +35,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 store = DieSampleStore()
 
@@ -241,6 +248,71 @@ async def get_sample_timeline(
         return store.get_sample_timeline(sample_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/kanban", response_class=HTMLResponse, tags=["看板"])
+async def kanban_page():
+    kanban_html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "kanban.html")
+    if os.path.exists(kanban_html_path):
+        with open(kanban_html_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="""
+    <html>
+        <head><title>打样任务看板</title></head>
+        <body>
+            <h1>打样任务看板</h1>
+            <p>请确保 static/kanban.html 文件存在</p>
+        </body>
+    </html>
+    """)
+
+
+@app.get("/api/kanban/samples", response_model=List[KanbanSampleItem], tags=["看板"])
+async def get_kanban_samples(
+    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
+    project_name: Optional[str] = Query(None, description="项目名称（模糊匹配）"),
+    die_number: Optional[str] = Query(None, description="刀模编号（模糊匹配）"),
+    status: Optional[SampleStatus] = Query(None, description="状态"),
+    owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
+    priority: Optional[str] = Query(None, description="优先级"),
+    date_from: Optional[datetime] = Query(None, description="创建日期起"),
+    date_to: Optional[datetime] = Query(None, description="创建日期止"),
+    current_user: User = Depends(get_current_user),
+):
+    return store.query_kanban_samples(
+        customer_name=customer_name,
+        project_name=project_name,
+        die_number=die_number,
+        status=status,
+        owner=owner,
+        priority=priority,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@app.get("/api/kanban/summary", response_model=KanbanSummary, tags=["看板"])
+async def get_kanban_summary(
+    customer_name: Optional[str] = Query(None, description="客户名称（模糊匹配）"),
+    project_name: Optional[str] = Query(None, description="项目名称（模糊匹配）"),
+    die_number: Optional[str] = Query(None, description="刀模编号（模糊匹配）"),
+    status: Optional[SampleStatus] = Query(None, description="状态"),
+    owner: Optional[str] = Query(None, description="责任人（模糊匹配）"),
+    priority: Optional[str] = Query(None, description="优先级"),
+    date_from: Optional[datetime] = Query(None, description="创建日期起"),
+    date_to: Optional[datetime] = Query(None, description="创建日期止"),
+    current_user: User = Depends(get_current_user),
+):
+    return store.get_kanban_summary(
+        customer_name=customer_name,
+        project_name=project_name,
+        die_number=die_number,
+        status=status,
+        owner=owner,
+        priority=priority,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ from schemas import (
     SealRecord, ConfirmRequest,
     AnomalyReport, RejectReasonDistribution, SpecRiskItem,
     OperationLog, OperationType, OperationLogQuery,
+    KanbanRiskFlag, KanbanSampleItem, KanbanSummary,
+    StatusSummaryItem, CustomerSummaryItem, BoardSpecSummaryItem, OwnerSummaryItem,
 )
 
 
@@ -23,6 +25,9 @@ CRACKING_CONCENTRATION_THRESHOLD = 3
 TEST_OVERDUE_DAYS = 7
 UNCONFIRMED_AFTER_MODIFY_DAYS = 3
 HIGH_REJECTION_THRESHOLD = 3
+NEAR_DEADLINE_DAYS = 3
+REPEATED_MODIFICATION_THRESHOLD = 3
+MULTIPLE_TEST_FAILURE_THRESHOLD = 3
 
 
 class DieSampleStore:
@@ -630,3 +635,218 @@ class DieSampleStore:
         logs = [self.operation_logs[lid] for lid in log_ids if lid in self.operation_logs]
         logs.sort(key=lambda x: x.operation_time)
         return logs
+
+    def _calculate_risk_flags(self, sample: DieSample, now: datetime) -> Tuple[List[KanbanRiskFlag], Optional[int], int, int]:
+        risk_flags: List[KanbanRiskFlag] = []
+        days_remaining: Optional[int] = None
+        modification_count = len(sample.modification_records)
+        test_failure_count = sum(1 for t in sample.test_records if not t.is_passed)
+
+        if sample.deadline and sample.status not in [SampleStatus.SEALED, SampleStatus.CANCELLED]:
+            delta = sample.deadline - now
+            days_remaining = delta.days
+            if days_remaining < 0:
+                risk_flags.append(KanbanRiskFlag.OVERDUE)
+            elif days_remaining <= NEAR_DEADLINE_DAYS:
+                risk_flags.append(KanbanRiskFlag.NEAR_DEADLINE)
+
+        if modification_count >= REPEATED_MODIFICATION_THRESHOLD:
+            risk_flags.append(KanbanRiskFlag.REPEATED_MODIFICATION)
+
+        if test_failure_count >= MULTIPLE_TEST_FAILURE_THRESHOLD:
+            risk_flags.append(KanbanRiskFlag.MULTIPLE_TEST_FAILURE)
+
+        if not risk_flags:
+            risk_flags.append(KanbanRiskFlag.NONE)
+
+        return risk_flags, days_remaining, modification_count, test_failure_count
+
+    def query_kanban_samples(
+        self,
+        customer_name: Optional[str] = None,
+        project_name: Optional[str] = None,
+        die_number: Optional[str] = None,
+        status: Optional[SampleStatus] = None,
+        owner: Optional[str] = None,
+        priority: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> List[KanbanSampleItem]:
+        now = datetime.now()
+        results: List[KanbanSampleItem] = []
+
+        for s in self.samples.values():
+            if customer_name and customer_name not in s.customer_name:
+                continue
+            if project_name and project_name not in s.project_name:
+                continue
+            if die_number and die_number not in s.die_number:
+                continue
+            if status and s.status != status:
+                continue
+            if owner and owner not in s.owner:
+                continue
+            if priority and s.priority != priority:
+                continue
+            if date_from and s.created_at < date_from:
+                continue
+            if date_to and s.created_at > date_to:
+                continue
+
+            risk_flags, days_remaining, mod_count, test_fail_count = self._calculate_risk_flags(s, now)
+
+            results.append(KanbanSampleItem(
+                **s.model_dump(),
+                risk_flags=risk_flags,
+                days_remaining=days_remaining,
+                modification_count=mod_count,
+                test_failure_count=test_fail_count,
+            ))
+
+        results.sort(key=lambda x: (
+            0 if KanbanRiskFlag.OVERDUE in x.risk_flags else 1,
+            0 if KanbanRiskFlag.NEAR_DEADLINE in x.risk_flags else 1,
+            {"紧急": 0, "高": 1, "普通": 2, "低": 3}.get(x.priority, 2),
+            x.created_at,
+        ))
+
+        return results
+
+    def get_kanban_summary(
+        self,
+        customer_name: Optional[str] = None,
+        project_name: Optional[str] = None,
+        die_number: Optional[str] = None,
+        status: Optional[SampleStatus] = None,
+        owner: Optional[str] = None,
+        priority: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> KanbanSummary:
+        now = datetime.now()
+        filtered_samples: List[DieSample] = []
+
+        for s in self.samples.values():
+            if customer_name and customer_name not in s.customer_name:
+                continue
+            if project_name and project_name not in s.project_name:
+                continue
+            if die_number and die_number not in s.die_number:
+                continue
+            if status and s.status != status:
+                continue
+            if owner and owner not in s.owner:
+                continue
+            if priority and s.priority != priority:
+                continue
+            if date_from and s.created_at < date_from:
+                continue
+            if date_to and s.created_at > date_to:
+                continue
+            filtered_samples.append(s)
+
+        total = len(filtered_samples)
+
+        status_counter: Dict[SampleStatus, List[str]] = defaultdict(list)
+        customer_counter: Dict[str, Dict] = defaultdict(lambda: {"total": 0, "status": defaultdict(int), "overdue": 0})
+        board_spec_counter: Dict[str, Dict] = defaultdict(lambda: {"total": 0, "cracking": set(), "reject": set()})
+        owner_counter: Dict[str, Dict] = defaultdict(lambda: {"total": 0, "status": defaultdict(int), "overdue": 0})
+
+        high_risk_count = 0
+        overdue_count = 0
+        near_deadline_count = 0
+
+        for s in filtered_samples:
+            status_counter[s.status].append(s.id)
+
+            cc = customer_counter[s.customer_name]
+            cc["total"] += 1
+            cc["status"][s.status.value] += 1
+
+            oc = owner_counter[s.owner]
+            oc["total"] += 1
+            oc["status"][s.status.value] += 1
+
+            bc = board_spec_counter[s.board_spec]
+            bc["total"] += 1
+            for t in s.test_records:
+                if t.cracking_description and str(t.cracking_description).strip():
+                    bc["cracking"].add(s.id)
+                    break
+            if len(s.reject_records) > 0:
+                bc["reject"].add(s.id)
+
+            risk_flags, _, _, _ = self._calculate_risk_flags(s, now)
+            if KanbanRiskFlag.OVERDUE in risk_flags:
+                overdue_count += 1
+                cc["overdue"] += 1
+                oc["overdue"] += 1
+            if KanbanRiskFlag.NEAR_DEADLINE in risk_flags:
+                near_deadline_count += 1
+            if len([f for f in risk_flags if f != KanbanRiskFlag.NONE]) >= 2:
+                high_risk_count += 1
+
+        status_summary: List[StatusSummaryItem] = []
+        for st in SampleStatus:
+            ids = status_counter.get(st, [])
+            count = len(ids)
+            status_summary.append(StatusSummaryItem(
+                status=st,
+                count=count,
+                percentage=round(count / max(total, 1) * 100, 2),
+                sample_ids=ids,
+            ))
+
+        customer_summary: List[CustomerSummaryItem] = []
+        for cust, data in customer_counter.items():
+            customer_summary.append(CustomerSummaryItem(
+                customer_name=cust,
+                total=data["total"],
+                status_breakdown=dict(data["status"]),
+                overdue_count=data["overdue"],
+            ))
+        customer_summary.sort(key=lambda x: x.total, reverse=True)
+
+        board_spec_summary: List[BoardSpecSummaryItem] = []
+        for spec, data in board_spec_counter.items():
+            cracking_count = len(data["cracking"])
+            reject_count = len(data["reject"])
+            total_spec = data["total"]
+            risk_score = (cracking_count / max(total_spec, 1) * 0.5 + reject_count / max(total_spec, 1) * 0.5) * 100
+            if risk_score >= 50:
+                risk_level = "high"
+            elif risk_score >= 25:
+                risk_level = "medium"
+            elif risk_score >= 10:
+                risk_level = "low"
+            else:
+                risk_level = "safe"
+            board_spec_summary.append(BoardSpecSummaryItem(
+                board_spec=spec,
+                total=total_spec,
+                cracking_count=cracking_count,
+                reject_count=reject_count,
+                risk_level=risk_level,
+            ))
+        board_spec_summary.sort(key=lambda x: x.total, reverse=True)
+
+        owner_summary: List[OwnerSummaryItem] = []
+        for owner_name, data in owner_counter.items():
+            owner_summary.append(OwnerSummaryItem(
+                owner=owner_name,
+                total=data["total"],
+                status_breakdown=dict(data["status"]),
+                overdue_count=data["overdue"],
+            ))
+        owner_summary.sort(key=lambda x: x.total, reverse=True)
+
+        return KanbanSummary(
+            total_samples=total,
+            status_summary=status_summary,
+            customer_summary=customer_summary,
+            board_spec_summary=board_spec_summary,
+            owner_summary=owner_summary,
+            high_risk_count=high_risk_count,
+            overdue_count=overdue_count,
+            near_deadline_count=near_deadline_count,
+        )
